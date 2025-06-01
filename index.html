@@ -20,6 +20,8 @@
         const referenceDateInput = document.getElementById('referenceDate');
         const startDayOfWeekSelect = document.getElementById('startDayOfWeek');
         const shiftContainer = document.getElementById('shiftSettingsContainer');
+        const toggleViewButton = document.getElementById('toggleViewButton'); // Novo botão
+        const mainCalendarContainer = document.getElementById('mainCalendarContainer'); // ID para o container principal
         
         // Elementos para a funcionalidade Gemini
         const suggestActivityButton = document.getElementById('suggestActivityButton');
@@ -36,7 +38,8 @@
                 { label: 'D', color: '#00FF00' }, 
                 { label: 'A', color: '#0000FF' }, 
                 { label: 'B', color: '#FFFF00' }  
-            ]
+            ],
+            viewMode: 'desktop' // 'desktop' (padrão) ou 'mobile'
         };
         let tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings));
         let selectedOffDayDate = null; 
@@ -47,9 +50,14 @@
             'AABBCC_48_96': { name: 'AABBCC (48/96 - 2 dias trab / 4 folga)', shiftsInPattern: 3, daysOn: 2, daysOff: 4 },
         };
 
+        function updateToggleButtonText() {
+            toggleViewButton.textContent = settings.viewMode === 'desktop' ? 'Visualização Celular' : 'Visualização PC';
+        }
+
         function applySettingsAndRender() { 
             updateSettingsUIInputs(); 
-            renderCalendar();
+            updateToggleButtonText(); // Atualiza o texto do botão de visualização
+            renderCalendar(); // renderCalendar agora também lida com o layout do viewMode
         }
 
         function loadSettingsFromLocalStorage() {
@@ -59,10 +67,10 @@
                 try {
                     const loadedSettings = JSON.parse(storedSettings);
                     console.log("Configurações carregadas do LocalStorage:", loadedSettings);
-                    // Mescla de forma inteligente para evitar que configurações antigas quebrem o app
                     settings.scheduleType = loadedSettings.scheduleType || settings.scheduleType;
                     settings.referenceDate = loadedSettings.referenceDate || settings.referenceDate;
                     settings.startDayOfWeek = loadedSettings.startDayOfWeek || settings.startDayOfWeek;
+                    settings.viewMode = loadedSettings.viewMode || 'desktop'; // Carrega viewMode
                     
                     if (loadedSettings.shifts && Array.isArray(loadedSettings.shifts) && loadedSettings.shifts.length > 0) {
                         settings.shifts = loadedSettings.shifts.map(s => ({
@@ -72,11 +80,10 @@
                     }
                 } catch (e) {
                     console.error("Erro ao parsear configurações do LocalStorage, usando padrões:", e);
-                    // Se houver erro no parse, usa os defaults para evitar quebrar o app
                 }
             } else {
                 console.log("Nenhuma configuração encontrada no LocalStorage. Usando padrões e salvando.");
-                saveSettingsToLocalStorage(true); // Salva os defaults se for o primeiro uso
+                saveSettingsToLocalStorage(true); 
             }
             tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings)); 
             applySettingsAndRender();
@@ -85,7 +92,6 @@
         function saveSettingsToLocalStorage(isInitialSave = false) {
             console.log("Salvando configurações no LocalStorage:", settings);
             try {
-                // Garante que settings.shifts tenha o número correto de turnos
                 const currentPatternDetails = schedulePatterns[settings.scheduleType];
                 const numShiftsRequired = currentPatternDetails.shiftsInPattern;
                 if (!settings.shifts) settings.shifts = [];
@@ -148,6 +154,19 @@
             }
         }
         function renderCalendar() {  
+            // Ajusta o container principal baseado no viewMode
+            if (settings.viewMode === 'mobile') {
+                mainCalendarContainer.classList.remove('max-w-3xl');
+                mainCalendarContainer.classList.add('max-w-md'); // Mais compacto
+                currentMonthYear.classList.remove('text-xl');
+                currentMonthYear.classList.add('text-lg');
+            } else { // desktop
+                mainCalendarContainer.classList.remove('max-w-md');
+                mainCalendarContainer.classList.add('max-w-3xl');
+                currentMonthYear.classList.remove('text-lg');
+                currentMonthYear.classList.add('text-xl');
+            }
+
             calendarGrid.innerHTML = ''; 
             currentMonthYear.textContent = `${currentDate.toLocaleString('pt-BR', { month: 'long' })} ${currentDate.getFullYear()}`;
             const year = currentDate.getFullYear();
@@ -157,6 +176,8 @@
             const daysInMonth = lastDayOfMonth.getDate();
             let startingDay = firstDayOfMonth.getDay(); 
             if (settings.startDayOfWeek === 'Monday') startingDay = (startingDay === 0) ? 6 : startingDay - 1; 
+            
+            const dayHeadersBaseClasses = 'font-semibold text-center';
             const dayHeaders = (settings.startDayOfWeek === 'Monday') ? ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] : ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
             
             selectedOffDayDate = null;
@@ -168,7 +189,13 @@
 
             dayHeaders.forEach(header => {
                 const dayHeaderCell = document.createElement('div');
-                dayHeaderCell.className = 'font-semibold text-center text-sm text-gray-600 dark:text-gray-300 py-2';
+                let headerClasses = dayHeadersBaseClasses;
+                if (settings.viewMode === 'mobile') {
+                    headerClasses += ' text-xs py-1 text-gray-500 dark:text-gray-400';
+                } else {
+                    headerClasses += ' text-sm py-2 text-gray-600 dark:text-gray-300';
+                }
+                dayHeaderCell.className = headerClasses;
                 dayHeaderCell.textContent = header;
                 calendarGrid.appendChild(dayHeaderCell);
             });
@@ -177,11 +204,19 @@
             
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayCell = document.createElement('div');
-                dayCell.className = 'border rounded-md p-2 text-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[70px] flex flex-col justify-start items-center cursor-pointer';
+                let cellClasses = 'border rounded-md text-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex flex-col justify-start items-center cursor-pointer';
+                if (settings.viewMode === 'mobile') {
+                    cellClasses += ' p-1 min-h-[50px]'; // Mais compacto
+                } else {
+                    cellClasses += ' p-2 min-h-[70px]'; // Padrão desktop
+                }
+                dayCell.className = cellClasses;
+
                 const dayNumber = document.createElement('span');
-                dayNumber.className = 'text-sm font-medium'; 
+                dayNumber.className = `font-medium ${settings.viewMode === 'mobile' ? 'text-xs' : 'text-sm'}`;
                 dayNumber.textContent = day;
                 dayCell.appendChild(dayNumber);
+
                 const currentIterationDate = new Date(year, month, day);
                 const shiftInfo = getShiftForDate(currentIterationDate);
 
@@ -190,7 +225,7 @@
                     const contrastColor = getContrastColor(shiftInfo.color);
                     dayNumber.style.color = contrastColor; 
                     const shiftLabel = document.createElement('span');
-                    shiftLabel.className = 'text-xs font-bold mt-1';
+                    shiftLabel.className = `font-bold ${settings.viewMode === 'mobile' ? 'text-[10px] mt-0.5' : 'text-xs mt-1'}`;
                     shiftLabel.style.color = contrastColor; 
                     shiftLabel.textContent = shiftInfo.label;
                     dayCell.appendChild(shiftLabel);
@@ -198,7 +233,7 @@
                         clearOffDaySelection();
                     });
                 } else { 
-                    dayNumber.classList.add('text-gray-800', 'dark:text-gray-100');
+                    dayNumber.classList.add(settings.viewMode === 'mobile' ? 'text-gray-700 dark:text-gray-200' : 'text-gray-800 dark:text-gray-100');
                     dayCell.addEventListener('click', () => {
                         clearOffDaySelection(); 
                         dayCell.classList.add('ring-2', 'ring-blue-500', 'dark:ring-blue-400', 'bg-blue-100', 'dark:bg-blue-900');
@@ -285,6 +320,13 @@
                 shiftContainer.appendChild(div);
             }
         }
+        
+        toggleViewButton.addEventListener('click', () => {
+            settings.viewMode = settings.viewMode === 'desktop' ? 'mobile' : 'desktop';
+            saveSettingsToLocalStorage();
+            applySettingsAndRender(); // Isso vai chamar updateToggleButtonText e renderCalendar
+        });
+
         prevMonthButton.addEventListener('click', () => {  
             currentDate.setMonth(currentDate.getMonth() - 1);
             renderCalendar(); 
@@ -308,7 +350,7 @@
             settings.referenceDate = referenceDateInput.value;
             settings.startDayOfWeek = startDayOfWeekSelect.value;
             
-            const success = saveSettingsToLocalStorage(); // Alterado para localStorage
+            const success = saveSettingsToLocalStorage(); 
             if (success) {
                 settingsModal.classList.add('hidden');
                 renderCalendar(); 
@@ -351,7 +393,7 @@
             try {
                 let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
                 const payload = { contents: chatHistory };
-                const apiKey = ""; // Chave de API para Gemini (deixada vazia para ser gerenciada pelo ambiente, se possível)
+                const apiKey = ""; 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`; 
 
                 const response = await fetch(apiUrl, {
@@ -363,7 +405,6 @@
                 if (!response.ok) {
                     const errorData = await response.json();
                     console.error("Erro da API Gemini:", errorData);
-                    // Verifica se o erro é por falta de API Key (comum quando apiKey é deixada vazia e o ambiente não injeta)
                     if (response.status === 400 && errorData.error && errorData.error.message.toLowerCase().includes("api key not valid")) {
                          activitySuggestionArea.innerHTML = '<p class="text-red-500">Erro: A chave de API para o serviço de sugestões não é válida ou não foi fornecida. Esta funcionalidade pode não estar disponível.</p>';
                     } else {
@@ -387,7 +428,7 @@
 
             } catch (error) {
                 console.error("Erro ao buscar sugestões da API Gemini:", error);
-                if (!activitySuggestionArea.innerHTML.includes("Erro: A chave de API")) { // Evita sobrescrever a mensagem específica de API key
+                if (!activitySuggestionArea.innerHTML.includes("Erro: A chave de API")) { 
                    activitySuggestionArea.innerHTML = `<p class="text-red-500">Ocorreu um erro ao buscar sugestões: ${error.message}. Verifique o console para mais detalhes.</p>`;
                 }
             }
@@ -395,7 +436,7 @@
 
         // Inicialização
         populateScheduleTypes();
-        loadSettingsFromLocalStorage(); // Carrega do localStorage ao invés do Firestore
+        loadSettingsFromLocalStorage(); 
 
     </script>
     <style> 
@@ -408,14 +449,20 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 min-h-screen flex flex-col items-center">
 
-    <div class="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6">
+    <div id="mainCalendarContainer" class="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6">
         <div class="flex justify-between items-center mb-2">
             <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário de Escalas</h1>
-            <button id="openSettingsButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
-                Configurações
-            </button>
+            <div class="flex items-center space-x-2">
+                <button id="toggleViewButton" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
+                    Alternar Visualização
+                </button>
+                <button id="openSettingsButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
+                    Configurações
+                </button>
+            </div>
         </div>
-        <div class="h-4 mb-4"></div> <div class="flex justify-between items-center mb-4">
+        <div class="h-4 mb-4"></div> 
+        <div class="flex justify-between items-center mb-4">
             <button id="prevMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
             </button>
