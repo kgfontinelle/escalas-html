@@ -7,19 +7,29 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="module">
-        // Importações do Firebase
+        // Importações do Firebase (usando CDN)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // getAnalytics não está sendo usado ativamente no app, mas pode ser adicionado se necessário.
+        // import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 
-        // Configuração do Firebase
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID" };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fire-shift-calendar-dev';
+        // Configuração do Firebase fornecida pelo usuário
+        const firebaseConfig = {
+          apiKey: "AIzaSyAM3tJMsXFBNn7RRT7cqxIQlfgmLKt3IhI", // Lembre-se: Segurança via Regras do Firestore!
+          authDomain: "meuappcomfirebase-772a2.firebaseapp.com",
+          projectId: "meuappcomfirebase-772a2",
+          storageBucket: "meuappcomfirebase-772a2.firebasestorage.app",
+          messagingSenderId: "370618229353",
+          appId: "1:370618229353:web:ad28a447959ef7946738f8", // Usado para o caminho do Firestore
+          measurementId: "G-NWX8F370TB" // Para Google Analytics, se habilitado
+        };
 
         // Inicializar Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        // const analytics = getAnalytics(app); // Descomente se quiser usar Analytics
         setLogLevel('debug'); 
 
         let userId = null;
@@ -27,7 +37,7 @@
         let unsubscribeSettings = null;
         let isAuthReady = false; 
 
-        // Elementos da UI
+        // Elementos da UI (sem alterações)
         const calendarGrid = document.getElementById('calendarGrid');
         const currentMonthYear = document.getElementById('currentMonthYear');
         const prevMonthButton = document.getElementById('prevMonth');
@@ -44,6 +54,7 @@
         const googleLoginButton = document.getElementById('googleLoginButton');
         const logoutButton = document.getElementById('logoutButton');
         const authContainer = document.getElementById('authContainer');
+
 
         let currentDate = new Date();
         let settings = {
@@ -69,7 +80,8 @@
             isAuthReady = true; 
             if (user) {
                 userId = user.uid;
-                dbSettingsRef = doc(db, `artifacts/${appId}/users/${userId}/fireShiftSettings/config`);
+                // Usa o appId da sua firebaseConfig para o caminho do Firestore
+                dbSettingsRef = doc(db, `artifacts/${firebaseConfig.appId}/users/${userId}/fireShiftSettings/config`);
                 
                 if (user.isAnonymous) {
                     console.log("Usuário anônimo:", userId);
@@ -83,53 +95,41 @@
                     logoutButton.classList.remove('hidden');
                 }
                 loadSettingsFromFirestore(); 
-            } else {
-                console.log("Nenhum usuário autenticado, tentando login anônimo.");
+            } else { // Nenhum usuário logado (ex: após logout)
+                console.log("Nenhum usuário autenticado, tentando login anônimo. Verifique se o método de login anônimo está habilitado no console do Firebase."); // Log mais específico
                 userIdDisplay.textContent = "Autenticando...";
                 googleLoginButton.classList.remove('hidden');
                 logoutButton.classList.add('hidden');
                 try {
-                    // Tenta login anônimo se __initial_auth_token não estiver definido ou for inválido
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        try {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } catch (customTokenError) {
-                            console.warn("Falha no login com token customizado, tentando anônimo:", customTokenError);
-                            await signInAnonymously(auth);
-                        }
-                    } else {
-                        await signInAnonymously(auth);
-                    }
+                    // Com a config do usuário, o login anônimo é o fallback padrão.
+                    await signInAnonymously(auth);
+                    // onAuthStateChanged será chamado novamente com o usuário anônimo
                 } catch (error) {
-                    console.error("Erro ao fazer login anônimo:", error);
-                    userIdDisplay.textContent = "Falha na autenticação. Funcionalidade limitada.";
-                    googleLoginButton.classList.remove('hidden'); // Garante que o botão de login esteja visível
+                    console.error("Erro ao fazer login anônimo:", error); // Ponto onde o erro é capturado
+                    userIdDisplay.textContent = "Falha na autenticação. Verifique as configurações do Firebase e se o login anônimo está habilitado."; // Mensagem atualizada
+                    googleLoginButton.classList.remove('hidden'); 
                     logoutButton.classList.add('hidden');
-                    applySettingsAndRender(); // Usa defaults, pois não há usuário para carregar/salvar
+                    applySettingsAndRender(); 
                 }
             }
-             // Atualiza UI de settings se o modal estiver aberto, para refletir o estado de auth (cores desabilitadas/habilitadas)
             if (!settingsModal.classList.contains('hidden')) {
                 updateSettingsUIInputs();
             }
         });
 
-        googleLoginButton.addEventListener('click', async () => {
+        googleLoginButton.addEventListener('click', async () => { 
             const provider = new GoogleAuthProvider();
             try {
                 await signInWithPopup(auth, provider);
-                // onAuthStateChanged cuidará do resto
                 showToast("Login com Google bem-sucedido!", "success");
             } catch (error) {
                 console.error("Erro no login com Google:", error);
                 showToast(`Erro no login com Google: ${error.message}`, "error");
             }
         });
-
-        logoutButton.addEventListener('click', async () => {
+        logoutButton.addEventListener('click', async () => { 
             try {
                 await signOut(auth);
-                // onAuthStateChanged será chamado com user = null, e então tentará login anônimo.
                 showToast("Logout bem-sucedido!", "info");
             } catch (error) {
                 console.error("Erro no logout:", error);
@@ -137,12 +137,11 @@
             }
         });
 
-        function applySettingsAndRender() {
+        function applySettingsAndRender() { 
             updateSettingsUIInputs(); 
             renderCalendar();
         }
-
-        function loadSettingsFromFirestore() {
+        function loadSettingsFromFirestore() { 
             if (!dbSettingsRef) {
                 console.warn("Referência do DB não configurada (load). Usando padrões.");
                 applySettingsAndRender();
@@ -167,8 +166,6 @@
                     }
                     settings.startDayOfWeek = loadedSettings.startDayOfWeek || settings.startDayOfWeek;
                     
-                    // Carrega cores somente se não for anônimo ou se as cores existirem
-                    // A restrição de alteração é na UI, mas aqui garantimos que carregamos o que está salvo.
                     if (loadedSettings.shifts && Array.isArray(loadedSettings.shifts) && loadedSettings.shifts.length > 0) {
                         settings.shifts = loadedSettings.shifts.map(s => ({
                             label: s.label || '?',
@@ -187,8 +184,7 @@
                  applySettingsAndRender(); 
             });
         }
-
-        async function saveSettingsToFirestore(isInitialSave = false) {
+        async function saveSettingsToFirestore(isInitialSave = false) { 
             if (!userId || !dbSettingsRef) {
                 console.warn("Usuário não autenticado ou ref DB não configurada (save).");
                 if (!isInitialSave) showToast("Erro: Não autenticado. Não foi possível salvar.", "error");
@@ -203,26 +199,23 @@
             }
             if (settings.shifts.length > numShiftsRequired) settings.shifts.splice(numShiftsRequired);
 
-            // Se o usuário for anônimo, não salvamos as cores que ele possa ter tentado mudar
-            // (embora a UI deva impedir isso). Em vez disso, usamos as cores de tempSettingsBeforeEdit.
             let settingsToSave = JSON.parse(JSON.stringify(settings));
             if (auth.currentUser && auth.currentUser.isAnonymous) {
                 console.log("Usuário anônimo salvando. Cores serão mantidas do estado anterior ao modal.");
                 settingsToSave.shifts.forEach((shift, index) => {
                     if (tempSettingsBeforeEdit.shifts[index]) {
-                        shift.color = tempSettingsBeforeEdit.shifts[index].color; // Mantém a cor original
+                        shift.color = tempSettingsBeforeEdit.shifts[index].color; 
                     }
                 });
             }
-
 
             console.log("Salvando configurações no Firestore:", settingsToSave);
             try {
                 await setDoc(dbSettingsRef, settingsToSave); 
                 console.log("Configurações salvas com sucesso!");
                 if (!isInitialSave) showToast("Configurações salvas com sucesso!", "success");
-                tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settingsToSave)); // Atualiza com o que foi salvo
-                settings = JSON.parse(JSON.stringify(settingsToSave)); // Garante que 'settings' local reflita o que foi salvo
+                tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settingsToSave)); 
+                settings = JSON.parse(JSON.stringify(settingsToSave)); 
                 return true; 
             } catch (error) {
                 console.error("Erro ao salvar configurações no Firestore:", error);
@@ -230,8 +223,7 @@
                 return false; 
             }
         }
-
-        function populateScheduleTypes() { /* ... (sem alterações) ... */ 
+        function populateScheduleTypes() {  
             scheduleTypeSelect.innerHTML = ''; 
             Object.keys(schedulePatterns).forEach(key => {
                 const option = document.createElement('option');
@@ -240,7 +232,7 @@
                 scheduleTypeSelect.appendChild(option);
             });
         }
-        function getShiftForDate(dateToCalc) { /* ... (sem alterações) ... */ 
+        function getShiftForDate(dateToCalc) {  
             const patternDetails = schedulePatterns[settings.scheduleType];
             if (!patternDetails || !settings.shifts || settings.shifts.length === 0) return null;
 
@@ -272,7 +264,7 @@
                 return null; 
             }
         }
-        function renderCalendar() { /* ... (sem alterações na lógica principal, apenas cores) ... */ 
+        function renderCalendar() {  
             calendarGrid.innerHTML = ''; 
             currentMonthYear.textContent = `${currentDate.toLocaleString('pt-BR', { month: 'long' })} ${currentDate.getFullYear()}`;
             const year = currentDate.getFullYear();
@@ -314,7 +306,7 @@
                 calendarGrid.appendChild(dayCell);
             }
         }
-        function getContrastColor(hexColor) { /* ... (sem alterações) ... */
+        function getContrastColor(hexColor) { 
             if (!hexColor || hexColor.length < 7) return '#000000'; 
             try {
                 const r = parseInt(hexColor.slice(1, 3), 16);
@@ -327,8 +319,7 @@
                 return '#000000'; 
             }
         }
-        
-        function updateSettingsUIInputs() {
+        function updateSettingsUIInputs() {  
             scheduleTypeSelect.value = settings.scheduleType;
             referenceDateInput.value = settings.referenceDate;
             startDayOfWeekSelect.value = settings.startDayOfWeek;
@@ -342,7 +333,7 @@
             }
             if (settings.shifts.length > numShiftsToDisplay) settings.shifts.splice(numShiftsToDisplay);
 
-            const isAnonymous = auth.currentUser ? auth.currentUser.isAnonymous : true; // Assume anônimo se currentUser não estiver pronto
+            const isAnonymous = auth.currentUser ? auth.currentUser.isAnonymous : true; 
 
             for (let i = 0; i < numShiftsToDisplay; i++) {
                 const currentShiftConfig = settings.shifts[i]; 
@@ -369,12 +360,10 @@
                     colorInput.title = "";
                     colorInput.classList.remove('cursor-not-allowed', 'opacity-70');
                 }
-                // O onchange só atualiza 'settings' se não for anônimo.
                 colorInput.onchange = (e) => { 
                     if (!isAnonymous) {
                         settings.shifts[i].color = e.target.value; 
                     } else {
-                        // Reverte a tentativa de mudança se for anônimo (embora o input esteja disabled)
                         e.target.value = settings.shifts[i].color; 
                         showToast("Faça login com Google para alterar as cores.", "info");
                     }
@@ -389,47 +378,40 @@
                 shiftContainer.appendChild(div);
             }
         }
-
-        prevMonthButton.addEventListener('click', () => { /* ... (sem alterações) ... */ 
+        prevMonthButton.addEventListener('click', () => {  
             currentDate.setMonth(currentDate.getMonth() - 1);
             renderCalendar();
         });
-        nextMonthButton.addEventListener('click', () => { /* ... (sem alterações) ... */ 
+        nextMonthButton.addEventListener('click', () => {  
             currentDate.setMonth(currentDate.getMonth() + 1);
             renderCalendar();
         });
-        openSettingsButton.addEventListener('click', () => { /* ... (sem alterações) ... */ 
+        openSettingsButton.addEventListener('click', () => {  
             settings = JSON.parse(JSON.stringify(tempSettingsBeforeEdit)); 
             updateSettingsUIInputs(); 
             settingsModal.classList.remove('hidden');
         });
-        closeSettingsButton.addEventListener('click', () => { /* ... (sem alterações) ... */ 
+        closeSettingsButton.addEventListener('click', () => {  
             settingsModal.classList.add('hidden');
             settings = JSON.parse(JSON.stringify(tempSettingsBeforeEdit));
             applySettingsAndRender(); 
         });
-
-        saveSettingsButton.addEventListener('click', async () => {
+        saveSettingsButton.addEventListener('click', async () => { 
             settings.scheduleType = scheduleTypeSelect.value;
             settings.referenceDate = referenceDateInput.value;
             settings.startDayOfWeek = startDayOfWeekSelect.value;
             
-            // As alterações de label e color (se permitidas) já estão em 'settings' devido ao onchange dos inputs.
             const success = await saveSettingsToFirestore();
             if (success) {
                 settingsModal.classList.add('hidden');
-                // A renderização será tratada pelo onSnapshot, mas para feedback imediato:
                 renderCalendar(); 
-            } else {
-                // Não fecha o modal se o salvamento falhar, permitindo nova tentativa.
             }
         });
-
-        scheduleTypeSelect.addEventListener('change', (e) => { /* ... (sem alterações) ... */ 
+        scheduleTypeSelect.addEventListener('change', (e) => {  
             settings.scheduleType = e.target.value; 
             updateSettingsUIInputs(); 
         });
-        function showToast(message, type = 'info') { /* ... (sem alterações) ... */ 
+        function showToast(message, type = 'info') {  
             const toast = document.getElementById('toastNotification');
             const toastMessage = document.getElementById('toastMessage');
             toastMessage.textContent = message;
@@ -453,7 +435,7 @@
             applySettingsAndRender();
         }
     </script>
-    <style> /* ... (sem alterações) ... */ 
+    <style> 
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
         .modal.hidden { opacity: 0; visibility: hidden; }
