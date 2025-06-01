@@ -24,11 +24,6 @@
         const mainCalendarContainer = document.getElementById('mainCalendarContainer'); 
         const shiftFilterButtonsContainer = document.getElementById('shiftFilterButtonsContainer'); 
         
-        // Elementos para a funcionalidade Gemini
-        const suggestActivityButton = document.getElementById('suggestActivityButton');
-        const activitySuggestionArea = document.getElementById('activitySuggestionArea');
-        const selectedDayInfo = document.getElementById('selectedDayInfo');
-
         let currentDate = new Date(2025, 5, 1); 
         let settings = {
             scheduleType: 'ABCD_24_72', 
@@ -44,7 +39,7 @@
             filteredShiftLabel: null 
         };
         let tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings));
-        let selectedOffDayDate = null; 
+        let selectedOffDayDate = null; // Ainda usado para destacar o dia, mas não para IA
 
         const schedulePatterns = {
             'ABCD_24_72': { name: 'ABCD (24/72 - 1 dia trab / 3 folga)', shiftsInPattern: 4, daysOn: 1, daysOff: 3 },
@@ -215,30 +210,18 @@
                     dayShift: settings.shifts[daySlotIndex % numTeams] || null,
                     nightShift: settings.shifts[nightSlotIndex % numTeams] || null
                 };
-            } else { // Padrões 24h (e.g., ABCD_24_72, ABC_24_48, AABBCC_48_96) - LÓGICA CORRIGIDA
+            } else { 
                 const numDistinctTeams = patternDetails.shiftsInPattern; 
                 const daysWork = patternDetails.daysOn; 
 
                 if (numDistinctTeams === 0 || daysWork === 0) return { dayShift: null, nightShift: null };
-
-                // Total de dias para uma rotação completa de todas as alas através de seus blocos de trabalho.
-                // Ex: ABCD (24/72) -> 4 alas * 1 dia de trabalho = 4 dias.
-                // Ex: AABBCC (48/96) -> 3 alas * 2 dias de trabalho = 6 dias.
                 const fullRotationLength = numDistinctTeams * daysWork;
-
                 if (fullRotationLength === 0) return { dayShift: null, nightShift: null};
 
                 let dayInFullRotation = diffDays % fullRotationLength;
                 if (dayInFullRotation < 0) {
                     dayInFullRotation += fullRotationLength;
                 }
-
-                // Determina qual ala está no seu período de trabalho.
-                // Ex: ABCD, dayInFullRotation=0, daysWork=1 -> teamTurnIndex=0 (Ala A)
-                // Ex: ABCD, dayInFullRotation=3, daysWork=1 -> teamTurnIndex=3 (Ala D)
-                // Ex: AABBCC, dayInFullRotation=0, daysWork=2 -> teamTurnIndex=0 (Ala A, dia 1)
-                // Ex: AABBCC, dayInFullRotation=1, daysWork=2 -> teamTurnIndex=0 (Ala A, dia 2)
-                // Ex: AABBCC, dayInFullRotation=2, daysWork=2 -> teamTurnIndex=1 (Ala B, dia 1)
                 const teamTurnIndex = Math.floor(dayInFullRotation / daysWork);
 
                 if (settings.shifts[teamTurnIndex]) {
@@ -320,11 +303,12 @@
             const dayHeaders = (settings.startDayOfWeek === 'Monday') ? ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] : ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
             
             selectedOffDayDate = null;
-            suggestActivityButton.classList.add('hidden');
-            activitySuggestionArea.innerHTML = '';
-            activitySuggestionArea.classList.add('hidden');
-            selectedDayInfo.textContent = '';
-            selectedDayInfo.classList.add('hidden');
+            // Não precisa mais interagir com os elementos da IA aqui
+            // suggestActivityButton.classList.add('hidden');
+            // activitySuggestionArea.innerHTML = '';
+            // activitySuggestionArea.classList.add('hidden');
+            // selectedDayInfo.textContent = '';
+            // selectedDayInfo.classList.add('hidden');
 
             dayHeaders.forEach(header => {
                 const dayHeaderCell = document.createElement('div');
@@ -440,17 +424,13 @@
                             clearOffDaySelection(); 
                             dayCell.classList.add('ring-2', 'ring-teal-500', 'dark:ring-teal-400');
                             selectedOffDayDate = currentIterationDate;
-                            selectedDayInfo.textContent = `Folga da Ala ${settings.filteredShiftLabel} em: ${selectedOffDayDate.toLocaleDateString('pt-BR')}`;
-                            selectedDayInfo.classList.remove('hidden');
-                            suggestActivityButton.classList.remove('hidden');
-                            activitySuggestionArea.classList.add('hidden'); 
-                            activitySuggestionArea.innerHTML = ''; 
+                            // Não precisa mais mostrar o botão de sugestão de IA
                         });
                     }
                 } else if (!settings.filteredShiftLabel && !actualShifts.dayShift && !actualShifts.nightShift) { 
                      dayCell.addEventListener('click', () => {
                         clearOffDaySelection();
-                        showToast("Selecione uma ala para ver sugestões de atividades para os dias de folga dela.", "info");
+                        // Não precisa mais mostrar o toast sobre selecionar ala para IA
                      });
                 } else { 
                      dayCell.addEventListener('click', () => clearOffDaySelection());
@@ -465,11 +445,7 @@
                 currentlySelected.classList.remove('ring-2', 'ring-teal-500', 'dark:ring-teal-400');
             }
             selectedOffDayDate = null;
-            suggestActivityButton.classList.add('hidden');
-            activitySuggestionArea.classList.add('hidden');
-            activitySuggestionArea.innerHTML = '';
-            selectedDayInfo.classList.add('hidden');
-            selectedDayInfo.textContent = '';
+            // Não precisa mais interagir com os elementos da IA
         }
 
         function getContrastColor(hexColor) { 
@@ -619,67 +595,6 @@
             }, 3000);
         }
 
-        // Funcionalidade Gemini
-        suggestActivityButton.addEventListener('click', async () => {
-            if (!selectedOffDayDate) {
-                showToast("Por favor, selecione um dia de folga no calendário primeiro.", "info");
-                return;
-            }
-             if (!settings.filteredShiftLabel) {
-                showToast("Por favor, filtre por uma ala para obter sugestões de folga.", "info");
-                return;
-            }
-
-            activitySuggestionArea.classList.remove('hidden');
-            activitySuggestionArea.innerHTML = '<p class="text-center text-gray-500 dark:text-gray-400 animate-pulse">Buscando sugestões... ✨</p>';
-
-            const formattedDate = selectedOffDayDate.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            const prompt = `Sou um bombeiro da Ala ${settings.filteredShiftLabel} e estou de folga no dia ${formattedDate}. Por favor, sugira 3 atividades de lazer ou para fazer com a família, adequadas para um dia de descanso. Formate como uma lista com marcadores.`;
-
-            try {
-                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-                const payload = { contents: chatHistory };
-                const apiKey = ""; 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`; 
-
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error("Erro da API Gemini:", errorData);
-                    if (response.status === 400 && errorData.error && errorData.error.message.toLowerCase().includes("api key not valid")) {
-                         activitySuggestionArea.innerHTML = '<p class="text-red-500">Erro: A chave de API para o serviço de sugestões não é válida ou não foi fornecida. Esta funcionalidade pode não estar disponível.</p>';
-                    } else {
-                        activitySuggestionArea.innerHTML = `<p class="text-red-500">Erro da API: ${errorData.error?.message || response.statusText}</p>`;
-                    }
-                    throw new Error(`Erro da API: ${errorData.error?.message || response.statusText}`);
-                }
-
-                const result = await response.json();
-                
-                if (result.candidates && result.candidates.length > 0 &&
-                    result.candidates[0].content && result.candidates[0].content.parts &&
-                    result.candidates[0].content.parts.length > 0) {
-                    const text = result.candidates[0].content.parts[0].text;
-                    const formattedText = text.replace(/\*/g, '•').replace(/\n/g, '<br>');
-                    activitySuggestionArea.innerHTML = `<h4 class="font-semibold mb-2 text-lg text-blue-600 dark:text-blue-400">Sugestões para ${formattedDate} (Ala ${settings.filteredShiftLabel}):</h4><div class="prose prose-sm dark:prose-invert max-w-none">${formattedText}</div>`;
-                } else {
-                    console.error("Resposta inesperada da API Gemini:", result);
-                    activitySuggestionArea.innerHTML = '<p class="text-red-500">Não foi possível obter sugestões no momento. Tente novamente mais tarde.</p>';
-                }
-
-            } catch (error) {
-                console.error("Erro ao buscar sugestões da API Gemini:", error);
-                if (!activitySuggestionArea.innerHTML.includes("Erro: A chave de API")) { 
-                   activitySuggestionArea.innerHTML = `<p class="text-red-500">Ocorreu um erro ao buscar sugestões: ${error.message}. Verifique o console para mais detalhes.</p>`;
-                }
-            }
-        });
-
         // Inicialização
         populateScheduleTypes();
         loadSettingsFromLocalStorage(); 
@@ -689,7 +604,7 @@
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
         .modal.hidden { opacity: 0; visibility: hidden; }
-        .prose ul { list-style-type: disc; padding-left: 1.5em;}
+        .prose ul { list-style-type: disc; padding-left: 1.5em;} /* Estilo para listas da Gemini, se necessário no futuro */
         .prose li { margin-bottom: 0.5em;}
     </style>
 </head>
@@ -722,13 +637,13 @@
         </div>
         <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
 
-        <div class="mt-6 text-center">
-            <div id="selectedDayInfo" class="text-sm text-gray-600 dark:text-gray-300 mb-2 hidden"></div>
-            <button id="suggestActivityButton" class="hidden bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors text-sm">
+        <div class="mt-6 text-center hidden"> 
+            <div id="selectedDayInfo" class="text-sm text-gray-600 dark:text-gray-300 mb-2"></div>
+            <button id="suggestActivityButton" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors text-sm">
                 ✨ Sugerir Atividades para Folga
             </button>
-            <div id="activitySuggestionArea" class="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow hidden text-left">
-                </div>
+            <div id="activitySuggestionArea" class="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow text-left">
+            </div>
         </div>
     </div>
 
