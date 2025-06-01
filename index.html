@@ -22,33 +22,41 @@
         const shiftContainer = document.getElementById('shiftSettingsContainer');
         const toggleViewButton = document.getElementById('toggleViewButton'); 
         const mainCalendarContainer = document.getElementById('mainCalendarContainer'); 
+        const shiftFilterButtonsContainer = document.getElementById('shiftFilterButtonsContainer'); 
         
         // Elementos para a funcionalidade Gemini
         const suggestActivityButton = document.getElementById('suggestActivityButton');
         const activitySuggestionArea = document.getElementById('activitySuggestionArea');
         const selectedDayInfo = document.getElementById('selectedDayInfo');
 
-        let currentDate = new Date();
+        let currentDate = new Date(2025, 5, 1); 
         let settings = {
             scheduleType: 'ABCD_24_72', 
-            referenceDate: '2025-05-26', 
+            referenceDate: '2025-06-01', 
             startDayOfWeek: 'Sunday',    
-            shifts: [
-                { label: 'C', color: '#FF0000' }, 
-                { label: 'D', color: '#00FF00' }, 
-                { label: 'A', color: '#0000FF' }, 
-                { label: 'B', color: '#FFFF00' }  
+            shifts: [ 
+                { label: 'A', color: '#FF0000' }, 
+                { label: 'B', color: '#00FF00' }, 
+                { label: 'C', color: '#0000FF' }, 
+                { label: 'D', color: '#FFFF00' }  
             ],
-            viewMode: 'desktop' // 'desktop' (padrão) ou 'mobile'
+            viewMode: 'desktop',
+            filteredShiftLabel: null 
         };
         let tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings));
         let selectedOffDayDate = null; 
 
         const schedulePatterns = {
-            'ABC_24_48': { name: 'ABC (24/48 - 1 dia trab / 2 folga)', shiftsInPattern: 3, daysOn: 1, daysOff: 2 },
             'ABCD_24_72': { name: 'ABCD (24/72 - 1 dia trab / 3 folga)', shiftsInPattern: 4, daysOn: 1, daysOff: 3 },
+            'CUSTOM_5TEAM_12H_DN': { name: '5 Alas - Ciclo D/N (12h)', shiftsInPattern: 5, isComplex12h: true, daysInCycle: 5 },
+            '5TEAM_12_48': { name: '5 Alas - Turnos 12h (12/48)', shiftsInPattern: 5, isSimple12h: true, daysInCycle: 2.5 }, 
+            'ABC_24_48': { name: 'ABC (24/48 - 1 dia trab / 2 folga)', shiftsInPattern: 3, daysOn: 1, daysOff: 2 },
             'AABBCC_48_96': { name: 'AABBCC (48/96 - 2 dias trab / 4 folga)', shiftsInPattern: 3, daysOn: 2, daysOff: 4 },
         };
+
+        const custom5TeamPatternMap = [
+            [0, 4], [1, 0], [2, 1], [3, 2], [4, 3]  
+        ];
 
         function updateToggleButtonText() {
             toggleViewButton.textContent = settings.viewMode === 'desktop' ? 'Visualização Celular' : 'Visualização PC';
@@ -57,6 +65,7 @@
         function applySettingsAndRender() { 
             updateSettingsUIInputs(); 
             updateToggleButtonText(); 
+            renderShiftFilterButtons(); 
             renderCalendar(); 
         }
 
@@ -67,38 +76,94 @@
                 try {
                     const loadedSettings = JSON.parse(storedSettings);
                     console.log("Configurações carregadas do LocalStorage:", loadedSettings);
-                    settings.scheduleType = loadedSettings.scheduleType || settings.scheduleType;
-                    settings.referenceDate = loadedSettings.referenceDate || settings.referenceDate;
-                    settings.startDayOfWeek = loadedSettings.startDayOfWeek || settings.startDayOfWeek;
-                    settings.viewMode = loadedSettings.viewMode || 'desktop'; 
                     
-                    if (loadedSettings.shifts && Array.isArray(loadedSettings.shifts) && loadedSettings.shifts.length > 0) {
-                        settings.shifts = loadedSettings.shifts.map(s => ({
-                            label: s.label || '?',
+                    settings.scheduleType = loadedSettings.scheduleType !== undefined ? loadedSettings.scheduleType : settings.scheduleType;
+                    settings.referenceDate = loadedSettings.referenceDate !== undefined ? loadedSettings.referenceDate : settings.referenceDate;
+                    settings.startDayOfWeek = loadedSettings.startDayOfWeek !== undefined ? loadedSettings.startDayOfWeek : settings.startDayOfWeek;
+                    settings.viewMode = loadedSettings.viewMode !== undefined ? loadedSettings.viewMode : 'desktop'; 
+                    settings.filteredShiftLabel = loadedSettings.filteredShiftLabel !== undefined ? loadedSettings.filteredShiftLabel : null; 
+                    
+                    const patternDetails = schedulePatterns[settings.scheduleType]; 
+                    const numShiftsRequired = patternDetails ? patternDetails.shiftsInPattern : 4; 
+
+                    if (loadedSettings.shifts && Array.isArray(loadedSettings.shifts) && loadedSettings.shifts.length >= numShiftsRequired) {
+                        settings.shifts = loadedSettings.shifts.slice(0, numShiftsRequired).map((s, i) => ({
+                            label: s.label || String.fromCharCode(65 + i),
                             color: s.color || '#CCCCCC'
                         }));
+                    } else { 
+                        initializeDefaultShiftsForScheduleType();
                     }
+
                 } catch (e) {
                     console.error("Erro ao parsear configurações do LocalStorage, usando padrões:", e);
+                    initializeDefaultSettings(); 
+                    saveSettingsToLocalStorage(true);
                 }
             } else {
                 console.log("Nenhuma configuração encontrada no LocalStorage. Usando padrões e salvando.");
+                initializeDefaultSettings(); 
                 saveSettingsToLocalStorage(true); 
             }
             tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings)); 
             applySettingsAndRender();
         }
+        
+        function initializeDefaultSettings() {
+            settings.scheduleType = 'ABCD_24_72';
+            settings.referenceDate = '2025-06-01';
+            settings.startDayOfWeek = 'Sunday';
+            settings.viewMode = 'desktop';
+            settings.filteredShiftLabel = null;
+            initializeDefaultShiftsForScheduleType();
+        }
+
+        function initializeDefaultShiftsForScheduleType() {
+            const patternDetails = schedulePatterns[settings.scheduleType];
+            const numShiftsRequired = patternDetails ? patternDetails.shiftsInPattern : 4;
+            let defaultShifts = [];
+            if (settings.scheduleType === 'ABCD_24_72') {
+                defaultShifts = [
+                    { label: 'A', color: '#FF0000' }, { label: 'B', color: '#00FF00' },
+                    { label: 'C', color: '#0000FF' }, { label: 'D', color: '#FFFF00' }
+                ];
+            } else if (settings.scheduleType === 'CUSTOM_5TEAM_12H_DN') {
+                defaultShifts = [
+                    { label: 'G', color: '#FF0000' }, { label: 'H', color: '#00FF00' },
+                    { label: 'I', color: '#0000FF' }, { label: 'J', color: '#FFFF00' },
+                    { label: 'F', color: '#800080' }
+                ];
+            } else {
+                 for (let i = 0; i < numShiftsRequired; i++) {
+                    defaultShifts.push({ label: String.fromCharCode(65 + i), color: '#CCCCCC' });
+                 }
+            }
+            settings.shifts = defaultShifts.slice(0, numShiftsRequired);
+        }
+
 
         function saveSettingsToLocalStorage(isInitialSave = false) {
             console.log("Salvando configurações no LocalStorage:", settings);
             try {
                 const currentPatternDetails = schedulePatterns[settings.scheduleType];
-                const numShiftsRequired = currentPatternDetails.shiftsInPattern;
-                if (!settings.shifts) settings.shifts = [];
-                while (settings.shifts.length < numShiftsRequired) {
-                    settings.shifts.push({ label: String.fromCharCode(65 + settings.shifts.length), color: '#CCCCCC' });
+                if (currentPatternDetails) { 
+                    const numShiftsRequired = currentPatternDetails.shiftsInPattern;
+                    if (!settings.shifts) settings.shifts = [];
+                    while (settings.shifts.length < numShiftsRequired) {
+                        let defaultLabel = String.fromCharCode(65 + settings.shifts.length);
+                        if (settings.scheduleType === 'CUSTOM_5TEAM_12H_DN' && settings.shifts.length < 5) {
+                             const defaultLabels5Team = ['G', 'H', 'I', 'J', 'F'];
+                             const defaultColors5Team = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#800080'];
+                             defaultLabel = defaultLabels5Team[settings.shifts.length];
+                             settings.shifts.push({ label: defaultLabel, color: defaultColors5Team[settings.shifts.length] });
+                             continue;
+                        }
+                        settings.shifts.push({ label: defaultLabel, color: '#CCCCCC' });
+                    }
+                    if (settings.shifts.length > numShiftsRequired) {
+                        settings.shifts.splice(numShiftsRequired);
+                    }
                 }
-                if (settings.shifts.length > numShiftsRequired) settings.shifts.splice(numShiftsRequired);
 
                 localStorage.setItem('fireShiftCalendarSettings', JSON.stringify(settings));
                 console.log("Configurações salvas com sucesso no LocalStorage!");
@@ -121,38 +186,113 @@
                 scheduleTypeSelect.appendChild(option);
             });
         }
-        function getShiftForDate(dateToCalc) {  
+
+        function getShiftsForCalendarDay(dateToCalc) {
             const patternDetails = schedulePatterns[settings.scheduleType];
-            if (!patternDetails || !settings.shifts || settings.shifts.length === 0) return null;
+            if (!patternDetails || !settings.shifts || settings.shifts.length === 0) {
+                return { dayShift: null, nightShift: null };
+            }
 
             const [refYear, refMonth, refDay] = settings.referenceDate.split('-').map(Number);
             const refDateUtc = Date.UTC(refYear, refMonth - 1, refDay);
             const currentDateUtc = Date.UTC(dateToCalc.getFullYear(), dateToCalc.getMonth(), dateToCalc.getDate());
+            const diffDays = Math.floor((currentDateUtc - refDateUtc) / (1000 * 60 * 60 * 24));
 
-            const diffTime = currentDateUtc - refDateUtc;
-            let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            if (patternDetails.isComplex12h) { 
+                const cycleDay = (diffDays % patternDetails.daysInCycle + patternDetails.daysInCycle) % patternDetails.daysInCycle;
+                const dayShiftTeamIndex = custom5TeamPatternMap[cycleDay][0];
+                const nightShiftTeamIndex = custom5TeamPatternMap[cycleDay][1];
+                return {
+                    dayShift: settings.shifts[dayShiftTeamIndex] || null,
+                    nightShift: settings.shifts[nightShiftTeamIndex] || null
+                };
+            } else if (patternDetails.isSimple12h) { 
+                const numTeams = patternDetails.shiftsInPattern;
+                const daySlotIndex = diffDays * 2;
+                const nightSlotIndex = diffDays * 2 + 1;
 
-            if (patternDetails.daysOn === 1) {
-                const numberOfTeamsInCycle = settings.shifts.length; 
-                if (numberOfTeamsInCycle === 0) return null;
-                let teamIndex = diffDays % numberOfTeamsInCycle;
-                if (teamIndex < 0) teamIndex += numberOfTeamsInCycle;
-                return settings.shifts[teamIndex];
-            } else { 
-                const cycleLengthPerTeam = patternDetails.daysOn + patternDetails.daysOff;
-                const totalCycleLengthForAllTeams = patternDetails.shiftsInPattern * cycleLengthPerTeam;
-                if (totalCycleLengthForAllTeams === 0) return null;
-                let dayInOverallCycle = diffDays % totalCycleLengthForAllTeams;
-                if (dayInOverallCycle < 0) dayInOverallCycle += totalCycleLengthForAllTeams;
-                const currentTeamIndexInPattern = Math.floor(dayInOverallCycle / cycleLengthPerTeam);
-                const dayWithinTeamCycle = dayInOverallCycle % cycleLengthPerTeam;
-                if (dayWithinTeamCycle < patternDetails.daysOn) {
-                    const actualShiftIndex = currentTeamIndexInPattern % settings.shifts.length;
-                    if (settings.shifts[actualShiftIndex]) return settings.shifts[actualShiftIndex];
+                return {
+                    dayShift: settings.shifts[daySlotIndex % numTeams] || null,
+                    nightShift: settings.shifts[nightSlotIndex % numTeams] || null
+                };
+            } else { // Padrões 24h (e.g., ABCD_24_72, ABC_24_48, AABBCC_48_96) - LÓGICA CORRIGIDA
+                const numDistinctTeams = patternDetails.shiftsInPattern; 
+                const daysWork = patternDetails.daysOn; 
+
+                if (numDistinctTeams === 0 || daysWork === 0) return { dayShift: null, nightShift: null };
+
+                // Total de dias para uma rotação completa de todas as alas através de seus blocos de trabalho.
+                // Ex: ABCD (24/72) -> 4 alas * 1 dia de trabalho = 4 dias.
+                // Ex: AABBCC (48/96) -> 3 alas * 2 dias de trabalho = 6 dias.
+                const fullRotationLength = numDistinctTeams * daysWork;
+
+                if (fullRotationLength === 0) return { dayShift: null, nightShift: null};
+
+                let dayInFullRotation = diffDays % fullRotationLength;
+                if (dayInFullRotation < 0) {
+                    dayInFullRotation += fullRotationLength;
                 }
-                return null; 
+
+                // Determina qual ala está no seu período de trabalho.
+                // Ex: ABCD, dayInFullRotation=0, daysWork=1 -> teamTurnIndex=0 (Ala A)
+                // Ex: ABCD, dayInFullRotation=3, daysWork=1 -> teamTurnIndex=3 (Ala D)
+                // Ex: AABBCC, dayInFullRotation=0, daysWork=2 -> teamTurnIndex=0 (Ala A, dia 1)
+                // Ex: AABBCC, dayInFullRotation=1, daysWork=2 -> teamTurnIndex=0 (Ala A, dia 2)
+                // Ex: AABBCC, dayInFullRotation=2, daysWork=2 -> teamTurnIndex=1 (Ala B, dia 1)
+                const teamTurnIndex = Math.floor(dayInFullRotation / daysWork);
+
+                if (settings.shifts[teamTurnIndex]) {
+                    return { dayShift: settings.shifts[teamTurnIndex], nightShift: settings.shifts[teamTurnIndex] };
+                }
+                return { dayShift: null, nightShift: null }; 
             }
         }
+
+
+        function renderShiftFilterButtons() {
+            shiftFilterButtonsContainer.innerHTML = ''; 
+            const patternDetails = schedulePatterns[settings.scheduleType];
+            if (!patternDetails || !settings.shifts || settings.shifts.length === 0) return;
+
+            const baseButtonClasses = 'py-1 px-3 rounded-md shadow text-xs transition-colors mr-2 mb-2 font-medium';
+            
+            const showAllButton = document.createElement('button');
+            showAllButton.textContent = 'Todas as Alas';
+            showAllButton.className = `${baseButtonClasses} ${settings.filteredShiftLabel === null ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`;
+            showAllButton.onclick = () => {
+                settings.filteredShiftLabel = null;
+                saveSettingsToLocalStorage();
+                applySettingsAndRender();
+            };
+            shiftFilterButtonsContainer.appendChild(showAllButton);
+            
+            settings.shifts.forEach(shift => {
+                const button = document.createElement('button');
+                button.textContent = `Ala ${shift.label}`;
+                button.style.backgroundColor = settings.filteredShiftLabel === shift.label ? shift.color : '';
+                button.style.color = settings.filteredShiftLabel === shift.label ? getContrastColor(shift.color) : '';
+                
+                let dynamicClasses = settings.filteredShiftLabel === shift.label 
+                    ? `border-2 border-black dark:border-white` 
+                    : `bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600`;
+                if(settings.filteredShiftLabel !== shift.label){ 
+                    button.style.borderColor = shift.color;
+                    button.style.borderWidth = '2px';
+                    button.style.color = shift.color; 
+                    dynamicClasses = `bg-transparent hover:bg-opacity-20 hover:bg-[${shift.color}]`;
+                }
+
+                button.className = `${baseButtonClasses} ${dynamicClasses}`;
+                button.onclick = () => {
+                    settings.filteredShiftLabel = shift.label;
+                    saveSettingsToLocalStorage();
+                    applySettingsAndRender();
+                };
+                shiftFilterButtonsContainer.appendChild(button);
+            });
+        }
+
+
         function renderCalendar() {  
             if (settings.viewMode === 'mobile') {
                 mainCalendarContainer.classList.remove('max-w-3xl');
@@ -201,48 +341,119 @@
 
             for (let i = 0; i < startingDay; i++) calendarGrid.appendChild(document.createElement('div'));
             
+            const patternDetails = schedulePatterns[settings.scheduleType];
+            const is12hPattern = patternDetails && (patternDetails.isComplex12h || patternDetails.isSimple12h);
+
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayCell = document.createElement('div');
-                let cellClasses = 'border rounded-md text-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex flex-col justify-start items-center cursor-pointer';
+                let cellClasses = 'border rounded-md text-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex flex-col justify-between items-center cursor-pointer overflow-hidden';
                 if (settings.viewMode === 'mobile') {
-                    cellClasses += ' p-1 min-h-[50px]'; 
+                    cellClasses += ` ${is12hPattern ? 'p-0 min-h-[60px]' : 'p-1 min-h-[50px]'}`; 
                 } else {
-                    cellClasses += ' p-2 min-h-[70px]'; 
+                    cellClasses += ` ${is12hPattern ? 'p-0 min-h-[80px]' : 'p-2 min-h-[70px]'}`; 
                 }
                 dayCell.className = cellClasses;
 
-                const dayNumber = document.createElement('span');
-                dayNumber.className = `font-medium ${settings.viewMode === 'mobile' ? 'text-xs' : 'text-sm'}`;
-                dayNumber.textContent = day;
-                dayCell.appendChild(dayNumber);
+                const dayNumberSpan = document.createElement('span');
+                dayNumberSpan.className = `font-medium self-start ${settings.viewMode === 'mobile' ? 'text-xs px-1 pt-0.5' : 'text-sm px-2 pt-1'}`;
+                dayNumberSpan.textContent = day;
+                
+                const shiftsDisplayContainer = document.createElement('div');
+                shiftsDisplayContainer.className = 'w-full flex flex-col justify-around items-center flex-grow';
 
                 const currentIterationDate = new Date(year, month, day);
-                const shiftInfo = getShiftForDate(currentIterationDate);
+                const actualShifts = getShiftsForCalendarDay(currentIterationDate); 
 
-                if (shiftInfo) {
-                    dayCell.style.backgroundColor = shiftInfo.color;
-                    const contrastColor = getContrastColor(shiftInfo.color);
-                    dayNumber.style.color = contrastColor; 
-                    const shiftLabel = document.createElement('span');
-                    shiftLabel.className = `font-bold ${settings.viewMode === 'mobile' ? 'text-[10px] mt-0.5' : 'text-xs mt-1'}`;
-                    shiftLabel.style.color = contrastColor; 
-                    shiftLabel.textContent = shiftInfo.label;
-                    dayCell.appendChild(shiftLabel);
-                    dayCell.addEventListener('click', () => {
-                        clearOffDaySelection();
-                    });
+                let displayDayShift = null;
+                let displayNightShift = null;
+                let isDayOffForFilteredShift = false;
+
+                if (settings.filteredShiftLabel) {
+                    if (actualShifts.dayShift && actualShifts.dayShift.label === settings.filteredShiftLabel) {
+                        displayDayShift = actualShifts.dayShift;
+                    }
+                    if (actualShifts.nightShift && actualShifts.nightShift.label === settings.filteredShiftLabel) {
+                        displayNightShift = actualShifts.nightShift;
+                    }
+                    isDayOffForFilteredShift = !displayDayShift && !displayNightShift;
                 } else { 
-                    dayNumber.classList.add(settings.viewMode === 'mobile' ? 'text-gray-700 dark:text-gray-200' : 'text-gray-800 dark:text-gray-100');
-                    dayCell.addEventListener('click', () => {
-                        clearOffDaySelection(); 
-                        dayCell.classList.add('ring-2', 'ring-blue-500', 'dark:ring-blue-400', 'bg-blue-100', 'dark:bg-blue-900');
-                        selectedOffDayDate = currentIterationDate;
-                        selectedDayInfo.textContent = `Dia de folga selecionado: ${selectedOffDayDate.toLocaleDateString('pt-BR')}`;
-                        selectedDayInfo.classList.remove('hidden');
-                        suggestActivityButton.classList.remove('hidden');
-                        activitySuggestionArea.classList.add('hidden'); 
-                        activitySuggestionArea.innerHTML = ''; 
-                    });
+                    displayDayShift = actualShifts.dayShift;
+                    displayNightShift = actualShifts.nightShift;
+                }
+
+
+                if (is12hPattern) {
+                    dayCell.appendChild(dayNumberSpan); 
+                    
+                    const dayShiftDiv = document.createElement('div');
+                    dayShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-[10px]' : 'text-xs'}`;
+                    if (displayDayShift) {
+                        dayShiftDiv.style.backgroundColor = displayDayShift.color;
+                        dayShiftDiv.style.color = getContrastColor(displayDayShift.color);
+                        dayShiftDiv.textContent = displayDayShift.label + (settings.viewMode === 'desktop' ? ' (Dia)' : ' D');
+                    } else {
+                        dayShiftDiv.innerHTML = `&nbsp;`; 
+                        if (settings.filteredShiftLabel) dayShiftDiv.classList.add('bg-gray-50', 'dark:bg-gray-800'); 
+                    }
+                    shiftsDisplayContainer.appendChild(dayShiftDiv);
+
+                    const nightShiftDiv = document.createElement('div');
+                    nightShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-[10px]' : 'text-xs'}`;
+                     if (displayNightShift) {
+                        nightShiftDiv.style.backgroundColor = displayNightShift.color;
+                        nightShiftDiv.style.color = getContrastColor(displayNightShift.color);
+                        nightShiftDiv.textContent = displayNightShift.label + (settings.viewMode === 'desktop' ? ' (Noite)' : ' N');
+                    } else {
+                        nightShiftDiv.innerHTML = `&nbsp;`;
+                        if (settings.filteredShiftLabel) nightShiftDiv.classList.add('bg-gray-50', 'dark:bg-gray-800'); 
+                    }
+                    shiftsDisplayContainer.appendChild(nightShiftDiv);
+                    dayCell.appendChild(shiftsDisplayContainer);
+
+                } else { 
+                    dayCell.appendChild(dayNumberSpan);
+                    if (displayDayShift) { 
+                        dayCell.style.backgroundColor = displayDayShift.color;
+                        const contrastColor = getContrastColor(displayDayShift.color);
+                        dayNumberSpan.style.color = contrastColor; 
+                        const shiftLabel = document.createElement('span');
+                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-[10px] mt-0.5' : 'text-xs mt-1'}`;
+                        shiftLabel.style.color = contrastColor; 
+                        shiftLabel.textContent = displayDayShift.label;
+                        shiftsDisplayContainer.appendChild(shiftLabel);
+                    } else {
+                        if (settings.viewMode === 'mobile') {
+                            dayNumberSpan.classList.add('text-gray-700');
+                            dayNumberSpan.classList.add('dark:text-gray-200');
+                        } else {
+                            dayNumberSpan.classList.add('text-gray-800');
+                            dayNumberSpan.classList.add('dark:text-gray-100');
+                        }
+                        if (settings.filteredShiftLabel) dayCell.classList.add('bg-gray-50', 'dark:bg-gray-800'); 
+                    }
+                    dayCell.appendChild(shiftsDisplayContainer);
+                }
+                
+                if (settings.filteredShiftLabel && isDayOffForFilteredShift) {
+                    if (!is12hPattern || (is12hPattern && !displayDayShift && !displayNightShift)) { 
+                        dayCell.addEventListener('click', () => {
+                            clearOffDaySelection(); 
+                            dayCell.classList.add('ring-2', 'ring-teal-500', 'dark:ring-teal-400');
+                            selectedOffDayDate = currentIterationDate;
+                            selectedDayInfo.textContent = `Folga da Ala ${settings.filteredShiftLabel} em: ${selectedOffDayDate.toLocaleDateString('pt-BR')}`;
+                            selectedDayInfo.classList.remove('hidden');
+                            suggestActivityButton.classList.remove('hidden');
+                            activitySuggestionArea.classList.add('hidden'); 
+                            activitySuggestionArea.innerHTML = ''; 
+                        });
+                    }
+                } else if (!settings.filteredShiftLabel && !actualShifts.dayShift && !actualShifts.nightShift) { 
+                     dayCell.addEventListener('click', () => {
+                        clearOffDaySelection();
+                        showToast("Selecione uma ala para ver sugestões de atividades para os dias de folga dela.", "info");
+                     });
+                } else { 
+                     dayCell.addEventListener('click', () => clearOffDaySelection());
                 }
                 calendarGrid.appendChild(dayCell);
             }
@@ -251,7 +462,7 @@
         function clearOffDaySelection() {
             const currentlySelected = calendarGrid.querySelector('.ring-2');
             if (currentlySelected) {
-                currentlySelected.classList.remove('ring-2', 'ring-blue-500', 'dark:ring-blue-400', 'bg-blue-100', 'dark:bg-blue-900');
+                currentlySelected.classList.remove('ring-2', 'ring-teal-500', 'dark:ring-teal-400');
             }
             selectedOffDayDate = null;
             suggestActivityButton.classList.add('hidden');
@@ -279,14 +490,42 @@
             referenceDateInput.value = settings.referenceDate;
             startDayOfWeekSelect.value = settings.startDayOfWeek;
             shiftContainer.innerHTML = ''; 
+            
             const patternDetails = schedulePatterns[settings.scheduleType];
             const numShiftsToDisplay = patternDetails ? patternDetails.shiftsInPattern : (settings.shifts ? settings.shifts.length : 0);
             
             if (!settings.shifts) settings.shifts = [];
-            while (settings.shifts.length < numShiftsToDisplay) {
-                settings.shifts.push({ label: String.fromCharCode(65 + settings.shifts.length), color: '#CCCCCC' });
+            
+            let currentDefaultShifts = [];
+            if (settings.scheduleType === 'ABCD_24_72') {
+                currentDefaultShifts = [
+                    { label: 'A', color: '#FF0000' }, { label: 'B', color: '#00FF00' },
+                    { label: 'C', color: '#0000FF' }, { label: 'D', color: '#FFFF00' }
+                ];
+            } else if (settings.scheduleType === 'CUSTOM_5TEAM_12H_DN') {
+                currentDefaultShifts = [
+                    { label: 'G', color: '#FF0000' }, { label: 'H', color: '#00FF00' },
+                    { label: 'I', color: '#0000FF' }, { label: 'J', color: '#FFFF00' },
+                    { label: 'F', color: '#800080' }
+                ];
+            } else { 
+                for (let i = 0; i < numShiftsToDisplay; i++) {
+                    currentDefaultShifts.push({ label: String.fromCharCode(65 + i), color: '#CCCCCC' });
+                }
             }
-            if (settings.shifts.length > numShiftsToDisplay) settings.shifts.splice(numShiftsToDisplay);
+
+            const finalShifts = [];
+            for (let i = 0; i < numShiftsToDisplay; i++) {
+                if (settings.shifts[i] && settings.shifts[i].label && settings.shifts[i].color) { 
+                    finalShifts.push(settings.shifts[i]);
+                } else if (currentDefaultShifts[i]) { 
+                    finalShifts.push(currentDefaultShifts[i]);
+                } else { 
+                    finalShifts.push({ label: String.fromCharCode(65 + i), color: '#CCCCCC' });
+                }
+            }
+            settings.shifts = finalShifts.slice(0, numShiftsToDisplay); 
+
 
             for (let i = 0; i < numShiftsToDisplay; i++) {
                 const currentShiftConfig = settings.shifts[i]; 
@@ -312,7 +551,7 @@
                 
                 const shiftTitle = document.createElement('span');
                 shiftTitle.className = 'text-sm font-medium text-gray-700 dark:text-gray-300';
-                shiftTitle.textContent = `Turno ${i + 1}:`;
+                shiftTitle.textContent = `Ala ${i + 1}:`; 
                 div.appendChild(shiftTitle);
                 div.appendChild(labelInput);
                 div.appendChild(colorInput);
@@ -352,13 +591,17 @@
             const success = saveSettingsToLocalStorage(); 
             if (success) {
                 settingsModal.classList.add('hidden');
-                renderCalendar(); 
+                applySettingsAndRender(); 
             }
         });
         scheduleTypeSelect.addEventListener('change', (e) => {  
-            settings.scheduleType = e.target.value; 
+            const newScheduleType = e.target.value;
+            settings.scheduleType = newScheduleType; 
+            initializeDefaultShiftsForScheduleType(); 
+            settings.filteredShiftLabel = null; 
             updateSettingsUIInputs(); 
         });
+
         function showToast(message, type = 'info') {  
             const toast = document.getElementById('toastNotification');
             const toastMessage = document.getElementById('toastMessage');
@@ -382,12 +625,16 @@
                 showToast("Por favor, selecione um dia de folga no calendário primeiro.", "info");
                 return;
             }
+             if (!settings.filteredShiftLabel) {
+                showToast("Por favor, filtre por uma ala para obter sugestões de folga.", "info");
+                return;
+            }
 
             activitySuggestionArea.classList.remove('hidden');
             activitySuggestionArea.innerHTML = '<p class="text-center text-gray-500 dark:text-gray-400 animate-pulse">Buscando sugestões... ✨</p>';
 
             const formattedDate = selectedOffDayDate.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            const prompt = `Sou um bombeiro e estou de folga no dia ${formattedDate}. Por favor, sugira 3 atividades de lazer ou para fazer com a família, adequadas para um dia de descanso. Formate como uma lista com marcadores.`;
+            const prompt = `Sou um bombeiro da Ala ${settings.filteredShiftLabel} e estou de folga no dia ${formattedDate}. Por favor, sugira 3 atividades de lazer ou para fazer com a família, adequadas para um dia de descanso. Formate como uma lista com marcadores.`;
 
             try {
                 let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
@@ -419,7 +666,7 @@
                     result.candidates[0].content.parts.length > 0) {
                     const text = result.candidates[0].content.parts[0].text;
                     const formattedText = text.replace(/\*/g, '•').replace(/\n/g, '<br>');
-                    activitySuggestionArea.innerHTML = `<h4 class="font-semibold mb-2 text-lg text-blue-600 dark:text-blue-400">Sugestões para ${formattedDate}:</h4><div class="prose prose-sm dark:prose-invert max-w-none">${formattedText}</div>`;
+                    activitySuggestionArea.innerHTML = `<h4 class="font-semibold mb-2 text-lg text-blue-600 dark:text-blue-400">Sugestões para ${formattedDate} (Ala ${settings.filteredShiftLabel}):</h4><div class="prose prose-sm dark:prose-invert max-w-none">${formattedText}</div>`;
                 } else {
                     console.error("Resposta inesperada da API Gemini:", result);
                     activitySuggestionArea.innerHTML = '<p class="text-red-500">Não foi possível obter sugestões no momento. Tente novamente mais tarde.</p>';
@@ -452,7 +699,7 @@
         <div class="text-center mb-4">
             <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário de Escalas</h1>
         </div>
-        <div class="flex justify-between items-center mb-6">
+        <div class="flex justify-between items-center mb-2">
             <button id="toggleViewButton" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
                 Alternar Visualização
             </button>
@@ -460,6 +707,10 @@
                 Configurações
             </button>
         </div>
+
+        <div id="shiftFilterButtonsContainer" class="my-4 flex flex-wrap justify-center">
+            </div>
+        
         <div class="flex justify-between items-center mb-4">
             <button id="prevMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
@@ -495,7 +746,7 @@
                     <select id="scheduleType" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></select>
                 </div>
                 <div>
-                    <label for="referenceDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de Início do Ciclo (Turno 1):</label>
+                    <label for="referenceDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de Início do Ciclo (Ala 1):</label>
                     <input type="date" id="referenceDate" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 </div>
                 <div>
@@ -506,7 +757,7 @@
                     </select>
                 </div>
                 <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                    <h4 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2">Configuração dos Turnos:</h4>
+                    <h4 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2">Configuração das Alas:</h4>
                     <div id="shiftSettingsContainer" class="space-y-3"></div>
                 </div>
             </div>
