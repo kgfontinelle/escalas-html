@@ -7,37 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="module">
-        // Importações do Firebase (usando CDN)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        // getAnalytics não está sendo usado ativamente no app, mas pode ser adicionado se necessário.
-        // import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
-
-        // Configuração do Firebase fornecida pelo usuário
-        const firebaseConfig = {
-          apiKey: "AIzaSyAM3tJMsXFBNn7RRT7cqxIQlfgmLKt3IhI", // Lembre-se: Segurança via Regras do Firestore!
-          authDomain: "meuappcomfirebase-772a2.firebaseapp.com",
-          projectId: "meuappcomfirebase-772a2",
-          storageBucket: "meuappcomfirebase-772a2.firebasestorage.app",
-          messagingSenderId: "370618229353",
-          appId: "1:370618229353:web:ad28a447959ef7946738f8", // Usado para o caminho do Firestore
-          measurementId: "G-NWX8F370TB" // Para Google Analytics, se habilitado
-        };
-
-        // Inicializar Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        // const analytics = getAnalytics(app); // Descomente se quiser usar Analytics
-        setLogLevel('debug'); 
-
-        let userId = null;
-        let dbSettingsRef = null;
-        let unsubscribeSettings = null;
-        let isAuthReady = false; 
-
-        // Elementos da UI (sem alterações)
+        // Elementos da UI
         const calendarGrid = document.getElementById('calendarGrid');
         const currentMonthYear = document.getElementById('currentMonthYear');
         const prevMonthButton = document.getElementById('prevMonth');
@@ -50,11 +20,11 @@
         const referenceDateInput = document.getElementById('referenceDate');
         const startDayOfWeekSelect = document.getElementById('startDayOfWeek');
         const shiftContainer = document.getElementById('shiftSettingsContainer');
-        const userIdDisplay = document.getElementById('userIdDisplay');
-        const googleLoginButton = document.getElementById('googleLoginButton');
-        const logoutButton = document.getElementById('logoutButton');
-        const authContainer = document.getElementById('authContainer');
-
+        
+        // Elementos para a funcionalidade Gemini
+        const suggestActivityButton = document.getElementById('suggestActivityButton');
+        const activitySuggestionArea = document.getElementById('activitySuggestionArea');
+        const selectedDayInfo = document.getElementById('selectedDayInfo');
 
         let currentDate = new Date();
         let settings = {
@@ -69,6 +39,7 @@
             ]
         };
         let tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings));
+        let selectedOffDayDate = null; 
 
         const schedulePatterns = {
             'ABC_24_48': { name: 'ABC (24/48 - 1 dia trab / 2 folga)', shiftsInPattern: 3, daysOn: 1, daysOff: 2 },
@@ -76,94 +47,21 @@
             'AABBCC_48_96': { name: 'AABBCC (48/96 - 2 dias trab / 4 folga)', shiftsInPattern: 3, daysOn: 2, daysOff: 4 },
         };
 
-        onAuthStateChanged(auth, async (user) => {
-            isAuthReady = true; 
-            if (user) {
-                userId = user.uid;
-                // Usa o appId da sua firebaseConfig para o caminho do Firestore
-                dbSettingsRef = doc(db, `artifacts/${firebaseConfig.appId}/users/${userId}/fireShiftSettings/config`);
-                
-                if (user.isAnonymous) {
-                    console.log("Usuário anônimo:", userId);
-                    userIdDisplay.textContent = `Logado anonimamente (ID: ${userId.substring(0,6)}...)`;
-                    googleLoginButton.classList.remove('hidden');
-                    logoutButton.classList.add('hidden');
-                } else {
-                    console.log("Usuário Google autenticado:", userId, user.email);
-                    userIdDisplay.textContent = `Logado como: ${user.email || userId}`;
-                    googleLoginButton.classList.add('hidden');
-                    logoutButton.classList.remove('hidden');
-                }
-                loadSettingsFromFirestore(); 
-            } else { // Nenhum usuário logado (ex: após logout)
-                console.log("Nenhum usuário autenticado, tentando login anônimo. Verifique se o método de login anônimo está habilitado no console do Firebase."); // Log mais específico
-                userIdDisplay.textContent = "Autenticando...";
-                googleLoginButton.classList.remove('hidden');
-                logoutButton.classList.add('hidden');
-                try {
-                    // Com a config do usuário, o login anônimo é o fallback padrão.
-                    await signInAnonymously(auth);
-                    // onAuthStateChanged será chamado novamente com o usuário anônimo
-                } catch (error) {
-                    console.error("Erro ao fazer login anônimo:", error); // Ponto onde o erro é capturado
-                    userIdDisplay.textContent = "Falha na autenticação. Verifique as configurações do Firebase e se o login anônimo está habilitado."; // Mensagem atualizada
-                    googleLoginButton.classList.remove('hidden'); 
-                    logoutButton.classList.add('hidden');
-                    applySettingsAndRender(); 
-                }
-            }
-            if (!settingsModal.classList.contains('hidden')) {
-                updateSettingsUIInputs();
-            }
-        });
-
-        googleLoginButton.addEventListener('click', async () => { 
-            const provider = new GoogleAuthProvider();
-            try {
-                await signInWithPopup(auth, provider);
-                showToast("Login com Google bem-sucedido!", "success");
-            } catch (error) {
-                console.error("Erro no login com Google:", error);
-                showToast(`Erro no login com Google: ${error.message}`, "error");
-            }
-        });
-        logoutButton.addEventListener('click', async () => { 
-            try {
-                await signOut(auth);
-                showToast("Logout bem-sucedido!", "info");
-            } catch (error) {
-                console.error("Erro no logout:", error);
-                showToast(`Erro no logout: ${error.message}`, "error");
-            }
-        });
-
         function applySettingsAndRender() { 
             updateSettingsUIInputs(); 
             renderCalendar();
         }
-        function loadSettingsFromFirestore() { 
-            if (!dbSettingsRef) {
-                console.warn("Referência do DB não configurada (load). Usando padrões.");
-                applySettingsAndRender();
-                return;
-            }
-            console.log("Tentando carregar config do Firestore via onSnapshot para:", userId);
-            if (unsubscribeSettings) unsubscribeSettings(); 
 
-            unsubscribeSettings = onSnapshot(dbSettingsRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    console.log("Configurações do Firestore carregadas:", docSnap.data());
-                    const loadedSettings = docSnap.data();
+        function loadSettingsFromLocalStorage() {
+            console.log("Tentando carregar configurações do LocalStorage.");
+            const storedSettings = localStorage.getItem('fireShiftCalendarSettings');
+            if (storedSettings) {
+                try {
+                    const loadedSettings = JSON.parse(storedSettings);
+                    console.log("Configurações carregadas do LocalStorage:", loadedSettings);
+                    // Mescla de forma inteligente para evitar que configurações antigas quebrem o app
                     settings.scheduleType = loadedSettings.scheduleType || settings.scheduleType;
-                    if (loadedSettings.referenceDate) {
-                         if (loadedSettings.referenceDate.toDate) { 
-                            settings.referenceDate = loadedSettings.referenceDate.toDate().toISOString().split('T')[0];
-                        } else { 
-                            settings.referenceDate = loadedSettings.referenceDate;
-                        }
-                    } else {
-                        settings.referenceDate = settings.referenceDate; 
-                    }
+                    settings.referenceDate = loadedSettings.referenceDate || settings.referenceDate;
                     settings.startDayOfWeek = loadedSettings.startDayOfWeek || settings.startDayOfWeek;
                     
                     if (loadedSettings.shifts && Array.isArray(loadedSettings.shifts) && loadedSettings.shifts.length > 0) {
@@ -172,57 +70,42 @@
                             color: s.color || '#CCCCCC'
                         }));
                     }
-                } else {
-                    console.log("Nenhuma config encontrada no Firestore para este usuário. Usando padrões e salvando.");
-                    saveSettingsToFirestore(true); 
+                } catch (e) {
+                    console.error("Erro ao parsear configurações do LocalStorage, usando padrões:", e);
+                    // Se houver erro no parse, usa os defaults para evitar quebrar o app
                 }
-                tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings)); 
-                applySettingsAndRender();
-            }, (error) => {
-                 console.error("Erro ao carregar config via onSnapshot:", error);
-                 showToast("Erro ao carregar configurações do servidor.", "error");
-                 applySettingsAndRender(); 
-            });
+            } else {
+                console.log("Nenhuma configuração encontrada no LocalStorage. Usando padrões e salvando.");
+                saveSettingsToLocalStorage(true); // Salva os defaults se for o primeiro uso
+            }
+            tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings)); 
+            applySettingsAndRender();
         }
-        async function saveSettingsToFirestore(isInitialSave = false) { 
-            if (!userId || !dbSettingsRef) {
-                console.warn("Usuário não autenticado ou ref DB não configurada (save).");
-                if (!isInitialSave) showToast("Erro: Não autenticado. Não foi possível salvar.", "error");
-                return false; 
-            }
-            
-            const currentPatternDetails = schedulePatterns[settings.scheduleType];
-            const numShiftsRequired = currentPatternDetails.shiftsInPattern;
-            if (!settings.shifts) settings.shifts = [];
-            while (settings.shifts.length < numShiftsRequired) {
-                settings.shifts.push({ label: String.fromCharCode(65 + settings.shifts.length), color: '#CCCCCC' });
-            }
-            if (settings.shifts.length > numShiftsRequired) settings.shifts.splice(numShiftsRequired);
 
-            let settingsToSave = JSON.parse(JSON.stringify(settings));
-            if (auth.currentUser && auth.currentUser.isAnonymous) {
-                console.log("Usuário anônimo salvando. Cores serão mantidas do estado anterior ao modal.");
-                settingsToSave.shifts.forEach((shift, index) => {
-                    if (tempSettingsBeforeEdit.shifts[index]) {
-                        shift.color = tempSettingsBeforeEdit.shifts[index].color; 
-                    }
-                });
-            }
-
-            console.log("Salvando configurações no Firestore:", settingsToSave);
+        function saveSettingsToLocalStorage(isInitialSave = false) {
+            console.log("Salvando configurações no LocalStorage:", settings);
             try {
-                await setDoc(dbSettingsRef, settingsToSave); 
-                console.log("Configurações salvas com sucesso!");
+                // Garante que settings.shifts tenha o número correto de turnos
+                const currentPatternDetails = schedulePatterns[settings.scheduleType];
+                const numShiftsRequired = currentPatternDetails.shiftsInPattern;
+                if (!settings.shifts) settings.shifts = [];
+                while (settings.shifts.length < numShiftsRequired) {
+                    settings.shifts.push({ label: String.fromCharCode(65 + settings.shifts.length), color: '#CCCCCC' });
+                }
+                if (settings.shifts.length > numShiftsRequired) settings.shifts.splice(numShiftsRequired);
+
+                localStorage.setItem('fireShiftCalendarSettings', JSON.stringify(settings));
+                console.log("Configurações salvas com sucesso no LocalStorage!");
                 if (!isInitialSave) showToast("Configurações salvas com sucesso!", "success");
-                tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settingsToSave)); 
-                settings = JSON.parse(JSON.stringify(settingsToSave)); 
+                tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings)); 
                 return true; 
             } catch (error) {
-                console.error("Erro ao salvar configurações no Firestore:", error);
-                if (!isInitialSave) showToast("Erro ao salvar configurações. Tente novamente.", "error");
+                console.error("Erro ao salvar configurações no LocalStorage:", error);
+                if (!isInitialSave) showToast("Erro ao salvar configurações. O LocalStorage pode estar cheio ou desabilitado.", "error");
                 return false; 
             }
         }
+        
         function populateScheduleTypes() {  
             scheduleTypeSelect.innerHTML = ''; 
             Object.keys(schedulePatterns).forEach(key => {
@@ -275,22 +158,33 @@
             let startingDay = firstDayOfMonth.getDay(); 
             if (settings.startDayOfWeek === 'Monday') startingDay = (startingDay === 0) ? 6 : startingDay - 1; 
             const dayHeaders = (settings.startDayOfWeek === 'Monday') ? ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] : ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            
+            selectedOffDayDate = null;
+            suggestActivityButton.classList.add('hidden');
+            activitySuggestionArea.innerHTML = '';
+            activitySuggestionArea.classList.add('hidden');
+            selectedDayInfo.textContent = '';
+            selectedDayInfo.classList.add('hidden');
+
             dayHeaders.forEach(header => {
                 const dayHeaderCell = document.createElement('div');
                 dayHeaderCell.className = 'font-semibold text-center text-sm text-gray-600 dark:text-gray-300 py-2';
                 dayHeaderCell.textContent = header;
                 calendarGrid.appendChild(dayHeaderCell);
             });
+
             for (let i = 0; i < startingDay; i++) calendarGrid.appendChild(document.createElement('div'));
+            
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayCell = document.createElement('div');
-                dayCell.className = 'border rounded-md p-2 text-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[70px] flex flex-col justify-start items-center';
+                dayCell.className = 'border rounded-md p-2 text-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[70px] flex flex-col justify-start items-center cursor-pointer';
                 const dayNumber = document.createElement('span');
                 dayNumber.className = 'text-sm font-medium'; 
                 dayNumber.textContent = day;
                 dayCell.appendChild(dayNumber);
                 const currentIterationDate = new Date(year, month, day);
                 const shiftInfo = getShiftForDate(currentIterationDate);
+
                 if (shiftInfo) {
                     dayCell.style.backgroundColor = shiftInfo.color;
                     const contrastColor = getContrastColor(shiftInfo.color);
@@ -300,12 +194,39 @@
                     shiftLabel.style.color = contrastColor; 
                     shiftLabel.textContent = shiftInfo.label;
                     dayCell.appendChild(shiftLabel);
-                } else {
+                    dayCell.addEventListener('click', () => {
+                        clearOffDaySelection();
+                    });
+                } else { 
                     dayNumber.classList.add('text-gray-800', 'dark:text-gray-100');
+                    dayCell.addEventListener('click', () => {
+                        clearOffDaySelection(); 
+                        dayCell.classList.add('ring-2', 'ring-blue-500', 'dark:ring-blue-400', 'bg-blue-100', 'dark:bg-blue-900');
+                        selectedOffDayDate = currentIterationDate;
+                        selectedDayInfo.textContent = `Dia de folga selecionado: ${selectedOffDayDate.toLocaleDateString('pt-BR')}`;
+                        selectedDayInfo.classList.remove('hidden');
+                        suggestActivityButton.classList.remove('hidden');
+                        activitySuggestionArea.classList.add('hidden'); 
+                        activitySuggestionArea.innerHTML = ''; 
+                    });
                 }
                 calendarGrid.appendChild(dayCell);
             }
         }
+
+        function clearOffDaySelection() {
+            const currentlySelected = calendarGrid.querySelector('.ring-2');
+            if (currentlySelected) {
+                currentlySelected.classList.remove('ring-2', 'ring-blue-500', 'dark:ring-blue-400', 'bg-blue-100', 'dark:bg-blue-900');
+            }
+            selectedOffDayDate = null;
+            suggestActivityButton.classList.add('hidden');
+            activitySuggestionArea.classList.add('hidden');
+            activitySuggestionArea.innerHTML = '';
+            selectedDayInfo.classList.add('hidden');
+            selectedDayInfo.textContent = '';
+        }
+
         function getContrastColor(hexColor) { 
             if (!hexColor || hexColor.length < 7) return '#000000'; 
             try {
@@ -333,8 +254,6 @@
             }
             if (settings.shifts.length > numShiftsToDisplay) settings.shifts.splice(numShiftsToDisplay);
 
-            const isAnonymous = auth.currentUser ? auth.currentUser.isAnonymous : true; 
-
             for (let i = 0; i < numShiftsToDisplay; i++) {
                 const currentShiftConfig = settings.shifts[i]; 
                 const div = document.createElement('div');
@@ -350,23 +269,11 @@
                 colorInput.type = 'color';
                 colorInput.value = currentShiftConfig.color;
                 colorInput.className = 'w-12 h-10 p-1 border rounded-md dark:bg-gray-700 dark:border-gray-600';
-                
-                if (isAnonymous) {
-                    colorInput.disabled = true;
-                    colorInput.title = "Faça login com Google para alterar cores.";
-                    colorInput.classList.add('cursor-not-allowed', 'opacity-70');
-                } else {
-                    colorInput.disabled = false;
-                    colorInput.title = "";
-                    colorInput.classList.remove('cursor-not-allowed', 'opacity-70');
-                }
+                colorInput.disabled = false; 
+                colorInput.title = "";
+                colorInput.classList.remove('cursor-not-allowed', 'opacity-70');
                 colorInput.onchange = (e) => { 
-                    if (!isAnonymous) {
-                        settings.shifts[i].color = e.target.value; 
-                    } else {
-                        e.target.value = settings.shifts[i].color; 
-                        showToast("Faça login com Google para alterar as cores.", "info");
-                    }
+                    settings.shifts[i].color = e.target.value; 
                 }; 
                 
                 const shiftTitle = document.createElement('span');
@@ -380,11 +287,11 @@
         }
         prevMonthButton.addEventListener('click', () => {  
             currentDate.setMonth(currentDate.getMonth() - 1);
-            renderCalendar();
+            renderCalendar(); 
         });
         nextMonthButton.addEventListener('click', () => {  
             currentDate.setMonth(currentDate.getMonth() + 1);
-            renderCalendar();
+            renderCalendar(); 
         });
         openSettingsButton.addEventListener('click', () => {  
             settings = JSON.parse(JSON.stringify(tempSettingsBeforeEdit)); 
@@ -401,7 +308,7 @@
             settings.referenceDate = referenceDateInput.value;
             settings.startDayOfWeek = startDayOfWeekSelect.value;
             
-            const success = await saveSettingsToFirestore();
+            const success = saveSettingsToLocalStorage(); // Alterado para localStorage
             if (success) {
                 settingsModal.classList.add('hidden');
                 renderCalendar(); 
@@ -428,17 +335,75 @@
             }, 3000);
         }
 
+        // Funcionalidade Gemini
+        suggestActivityButton.addEventListener('click', async () => {
+            if (!selectedOffDayDate) {
+                showToast("Por favor, selecione um dia de folga no calendário primeiro.", "info");
+                return;
+            }
+
+            activitySuggestionArea.classList.remove('hidden');
+            activitySuggestionArea.innerHTML = '<p class="text-center text-gray-500 dark:text-gray-400 animate-pulse">Buscando sugestões... ✨</p>';
+
+            const formattedDate = selectedOffDayDate.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const prompt = `Sou um bombeiro e estou de folga no dia ${formattedDate}. Por favor, sugira 3 atividades de lazer ou para fazer com a família, adequadas para um dia de descanso. Formate como uma lista com marcadores.`;
+
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Chave de API para Gemini (deixada vazia para ser gerenciada pelo ambiente, se possível)
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`; 
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("Erro da API Gemini:", errorData);
+                    // Verifica se o erro é por falta de API Key (comum quando apiKey é deixada vazia e o ambiente não injeta)
+                    if (response.status === 400 && errorData.error && errorData.error.message.toLowerCase().includes("api key not valid")) {
+                         activitySuggestionArea.innerHTML = '<p class="text-red-500">Erro: A chave de API para o serviço de sugestões não é válida ou não foi fornecida. Esta funcionalidade pode não estar disponível.</p>';
+                    } else {
+                        activitySuggestionArea.innerHTML = `<p class="text-red-500">Erro da API: ${errorData.error?.message || response.statusText}</p>`;
+                    }
+                    throw new Error(`Erro da API: ${errorData.error?.message || response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    const formattedText = text.replace(/\*/g, '•').replace(/\n/g, '<br>');
+                    activitySuggestionArea.innerHTML = `<h4 class="font-semibold mb-2 text-lg text-blue-600 dark:text-blue-400">Sugestões para ${formattedDate}:</h4><div class="prose prose-sm dark:prose-invert max-w-none">${formattedText}</div>`;
+                } else {
+                    console.error("Resposta inesperada da API Gemini:", result);
+                    activitySuggestionArea.innerHTML = '<p class="text-red-500">Não foi possível obter sugestões no momento. Tente novamente mais tarde.</p>';
+                }
+
+            } catch (error) {
+                console.error("Erro ao buscar sugestões da API Gemini:", error);
+                if (!activitySuggestionArea.innerHTML.includes("Erro: A chave de API")) { // Evita sobrescrever a mensagem específica de API key
+                   activitySuggestionArea.innerHTML = `<p class="text-red-500">Ocorreu um erro ao buscar sugestões: ${error.message}. Verifique o console para mais detalhes.</p>`;
+                }
+            }
+        });
+
         // Inicialização
         populateScheduleTypes();
-        if (!isAuthReady) {
-            console.log("Auth não está pronta na inicialização, renderizando com defaults.");
-            applySettingsAndRender();
-        }
+        loadSettingsFromLocalStorage(); // Carrega do localStorage ao invés do Firestore
+
     </script>
     <style> 
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
         .modal.hidden { opacity: 0; visibility: hidden; }
+        .prose ul { list-style-type: disc; padding-left: 1.5em;}
+        .prose li { margin-bottom: 0.5em;}
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 min-h-screen flex flex-col items-center">
@@ -446,22 +411,11 @@
     <div class="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6">
         <div class="flex justify-between items-center mb-2">
             <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário de Escalas</h1>
-            <div id="authContainer" class="flex items-center space-x-2">
-                <button id="googleLoginButton" class="hidden bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
-                    Login com Google
-                </button>
-                <button id="logoutButton" class="hidden bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
-                    Logout
-                </button>
-                <button id="openSettingsButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
-                    Configurações
-                </button>
-            </div>
+            <button id="openSettingsButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
+                Configurações
+            </button>
         </div>
-        <div id="userIdDisplay" class="text-xs text-gray-500 dark:text-gray-400 mb-4 text-right h-4">Carregando ID do usuário...</div>
-
-
-        <div class="flex justify-between items-center mb-4">
+        <div class="h-4 mb-4"></div> <div class="flex justify-between items-center mb-4">
             <button id="prevMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
             </button>
@@ -471,6 +425,15 @@
             </button>
         </div>
         <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+
+        <div class="mt-6 text-center">
+            <div id="selectedDayInfo" class="text-sm text-gray-600 dark:text-gray-300 mb-2 hidden"></div>
+            <button id="suggestActivityButton" class="hidden bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors text-sm">
+                ✨ Sugerir Atividades para Folga
+            </button>
+            <div id="activitySuggestionArea" class="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow hidden text-left">
+                </div>
+        </div>
     </div>
 
     <div id="settingsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
