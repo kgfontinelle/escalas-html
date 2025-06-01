@@ -20,8 +20,8 @@
         const referenceDateInput = document.getElementById('referenceDate');
         const startDayOfWeekSelect = document.getElementById('startDayOfWeek');
         const shiftContainer = document.getElementById('shiftSettingsContainer');
-        const toggleViewButton = document.getElementById('toggleViewButton'); // Novo botão
-        const mainCalendarContainer = document.getElementById('mainCalendarContainer'); // ID para o container principal
+        const toggleViewButton = document.getElementById('toggleViewButton'); 
+        const mainCalendarContainer = document.getElementById('mainCalendarContainer'); 
         
         // Elementos para a funcionalidade Gemini
         const suggestActivityButton = document.getElementById('suggestActivityButton');
@@ -56,8 +56,8 @@
 
         function applySettingsAndRender() { 
             updateSettingsUIInputs(); 
-            updateToggleButtonText(); // Atualiza o texto do botão de visualização
-            renderCalendar(); // renderCalendar agora também lida com o layout do viewMode
+            updateToggleButtonText(); 
+            renderCalendar(); 
         }
 
         function loadSettingsFromLocalStorage() {
@@ -70,7 +70,7 @@
                     settings.scheduleType = loadedSettings.scheduleType || settings.scheduleType;
                     settings.referenceDate = loadedSettings.referenceDate || settings.referenceDate;
                     settings.startDayOfWeek = loadedSettings.startDayOfWeek || settings.startDayOfWeek;
-                    settings.viewMode = loadedSettings.viewMode || 'desktop'; // Carrega viewMode
+                    settings.viewMode = loadedSettings.viewMode || 'desktop'; 
                     
                     if (loadedSettings.shifts && Array.isArray(loadedSettings.shifts) && loadedSettings.shifts.length > 0) {
                         settings.shifts = loadedSettings.shifts.map(s => ({
@@ -154,13 +154,12 @@
             }
         }
         function renderCalendar() {  
-            // Ajusta o container principal baseado no viewMode
             if (settings.viewMode === 'mobile') {
                 mainCalendarContainer.classList.remove('max-w-3xl');
-                mainCalendarContainer.classList.add('max-w-md'); // Mais compacto
+                mainCalendarContainer.classList.add('max-w-md'); 
                 currentMonthYear.classList.remove('text-xl');
                 currentMonthYear.classList.add('text-lg');
-            } else { // desktop
+            } else { 
                 mainCalendarContainer.classList.remove('max-w-md');
                 mainCalendarContainer.classList.add('max-w-3xl');
                 currentMonthYear.classList.remove('text-lg');
@@ -206,9 +205,9 @@
                 const dayCell = document.createElement('div');
                 let cellClasses = 'border rounded-md text-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex flex-col justify-start items-center cursor-pointer';
                 if (settings.viewMode === 'mobile') {
-                    cellClasses += ' p-1 min-h-[50px]'; // Mais compacto
+                    cellClasses += ' p-1 min-h-[50px]'; 
                 } else {
-                    cellClasses += ' p-2 min-h-[70px]'; // Padrão desktop
+                    cellClasses += ' p-2 min-h-[70px]'; 
                 }
                 dayCell.className = cellClasses;
 
@@ -324,7 +323,7 @@
         toggleViewButton.addEventListener('click', () => {
             settings.viewMode = settings.viewMode === 'desktop' ? 'mobile' : 'desktop';
             saveSettingsToLocalStorage();
-            applySettingsAndRender(); // Isso vai chamar updateToggleButtonText e renderCalendar
+            applySettingsAndRender(); 
         });
 
         prevMonthButton.addEventListener('click', () => {  
@@ -450,18 +449,17 @@
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 min-h-screen flex flex-col items-center">
 
     <div id="mainCalendarContainer" class="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6">
-        <div class="flex justify-between items-center mb-2">
+        <div class="text-center mb-4">
             <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário de Escalas</h1>
-            <div class="flex items-center space-x-2">
-                <button id="toggleViewButton" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
-                    Alternar Visualização
-                </button>
-                <button id="openSettingsButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
-                    Configurações
-                </button>
-            </div>
         </div>
-        <div class="h-4 mb-4"></div> 
+        <div class="flex justify-between items-center mb-6">
+            <button id="toggleViewButton" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
+                Alternar Visualização
+            </button>
+            <button id="openSettingsButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
+                Configurações
+            </button>
+        </div>
         <div class="flex justify-between items-center mb-4">
             <button id="prevMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
@@ -512,7 +510,7 @@
                     <div id="shiftSettingsContainer" class="space-y-3"></div>
                 </div>
             </div>
-            <div class="mt-8 flex justify-end space-x-3">
+            <div class="mt-8 flex justify-center">
                 <button id="saveSettingsButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors">
                     Salvar Configurações
                 </button>
