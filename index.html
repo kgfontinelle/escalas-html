@@ -23,8 +23,16 @@
         const toggleViewButton = document.getElementById('toggleViewButton'); 
         const mainCalendarContainer = document.getElementById('mainCalendarContainer'); 
         const shiftFilterButtonsContainer = document.getElementById('shiftFilterButtonsContainer'); 
+
+        // Elementos para Eventos
+        const eventModal = document.getElementById('eventModal');
+        const eventModalTitle = document.getElementById('eventModalTitle');
+        const eventDescriptionInput = document.getElementById('eventDescriptionInput');
+        const saveEventButton = document.getElementById('saveEventButton');
+        const deleteEventButton = document.getElementById('deleteEventButton');
+        const closeEventModalButton = document.getElementById('closeEventModalButton');
         
-        let currentDate = new Date(2025, 5, 1); 
+        let currentDate = new Date();
         let settings = {
             scheduleType: 'ABCD_24_72', 
             referenceDate: '2025-06-01', 
@@ -38,8 +46,9 @@
             viewMode: 'desktop',
             filteredShiftLabel: null 
         };
+        let events = {}; // Objeto para armazenar eventos
         let tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings));
-        let selectedOffDayDate = null; // Ainda usado para destacar o dia, mas não para IA
+        let currentlyEditingEventDate = null; 
 
         const schedulePatterns = {
             'ABCD_24_72': { name: 'ABCD (24/72 - 1 dia trab / 3 folga)', shiftsInPattern: 4, daysOn: 1, daysOff: 3 },
@@ -65,18 +74,11 @@
         }
 
         function loadSettingsFromLocalStorage() {
-            console.log("Tentando carregar configurações do LocalStorage.");
             const storedSettings = localStorage.getItem('fireShiftCalendarSettings');
             if (storedSettings) {
                 try {
                     const loadedSettings = JSON.parse(storedSettings);
-                    console.log("Configurações carregadas do LocalStorage:", loadedSettings);
-                    
-                    settings.scheduleType = loadedSettings.scheduleType !== undefined ? loadedSettings.scheduleType : settings.scheduleType;
-                    settings.referenceDate = loadedSettings.referenceDate !== undefined ? loadedSettings.referenceDate : settings.referenceDate;
-                    settings.startDayOfWeek = loadedSettings.startDayOfWeek !== undefined ? loadedSettings.startDayOfWeek : settings.startDayOfWeek;
-                    settings.viewMode = loadedSettings.viewMode !== undefined ? loadedSettings.viewMode : 'desktop'; 
-                    settings.filteredShiftLabel = loadedSettings.filteredShiftLabel !== undefined ? loadedSettings.filteredShiftLabel : null; 
+                    settings = { ...settings, ...loadedSettings };
                     
                     const patternDetails = schedulePatterns[settings.scheduleType]; 
                     const numShiftsRequired = patternDetails ? patternDetails.shiftsInPattern : 4; 
@@ -89,19 +91,29 @@
                     } else { 
                         initializeDefaultShiftsForScheduleType();
                     }
-
                 } catch (e) {
-                    console.error("Erro ao parsear configurações do LocalStorage, usando padrões:", e);
+                    console.error("Erro ao carregar configurações, usando padrões:", e);
                     initializeDefaultSettings(); 
                     saveSettingsToLocalStorage(true);
                 }
             } else {
-                console.log("Nenhuma configuração encontrada no LocalStorage. Usando padrões e salvando.");
+                console.log("Nenhuma configuração encontrada. Usando padrões.");
                 initializeDefaultSettings(); 
                 saveSettingsToLocalStorage(true); 
             }
             tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings)); 
-            applySettingsAndRender();
+        }
+
+        function loadEventsFromLocalStorage() {
+            const storedEvents = localStorage.getItem('fireShiftEvents');
+            if (storedEvents) {
+                try {
+                    events = JSON.parse(storedEvents);
+                } catch (e) {
+                    console.error("Erro ao carregar eventos, iniciando vazio:", e);
+                    events = {};
+                }
+            }
         }
         
         function initializeDefaultSettings() {
@@ -136,39 +148,25 @@
             settings.shifts = defaultShifts.slice(0, numShiftsRequired);
         }
 
-
         function saveSettingsToLocalStorage(isInitialSave = false) {
-            console.log("Salvando configurações no LocalStorage:", settings);
             try {
-                const currentPatternDetails = schedulePatterns[settings.scheduleType];
-                if (currentPatternDetails) { 
-                    const numShiftsRequired = currentPatternDetails.shiftsInPattern;
-                    if (!settings.shifts) settings.shifts = [];
-                    while (settings.shifts.length < numShiftsRequired) {
-                        let defaultLabel = String.fromCharCode(65 + settings.shifts.length);
-                        if (settings.scheduleType === 'CUSTOM_5TEAM_12H_DN' && settings.shifts.length < 5) {
-                             const defaultLabels5Team = ['G', 'H', 'I', 'J', 'F'];
-                             const defaultColors5Team = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#800080'];
-                             defaultLabel = defaultLabels5Team[settings.shifts.length];
-                             settings.shifts.push({ label: defaultLabel, color: defaultColors5Team[settings.shifts.length] });
-                             continue;
-                        }
-                        settings.shifts.push({ label: defaultLabel, color: '#CCCCCC' });
-                    }
-                    if (settings.shifts.length > numShiftsRequired) {
-                        settings.shifts.splice(numShiftsRequired);
-                    }
-                }
-
                 localStorage.setItem('fireShiftCalendarSettings', JSON.stringify(settings));
-                console.log("Configurações salvas com sucesso no LocalStorage!");
                 if (!isInitialSave) showToast("Configurações salvas com sucesso!", "success");
                 tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings)); 
                 return true; 
             } catch (error) {
-                console.error("Erro ao salvar configurações no LocalStorage:", error);
-                if (!isInitialSave) showToast("Erro ao salvar configurações. O LocalStorage pode estar cheio ou desabilitado.", "error");
+                console.error("Erro ao salvar configurações:", error);
+                if (!isInitialSave) showToast("Erro ao salvar configurações.", "error");
                 return false; 
+            }
+        }
+        
+        function saveEventsToLocalStorage() {
+            try {
+                localStorage.setItem('fireShiftEvents', JSON.stringify(events));
+            } catch (error) {
+                console.error("Erro ao salvar eventos:", error);
+                showToast("Erro ao salvar evento.", "error");
             }
         }
         
@@ -205,7 +203,6 @@
                 const numTeams = patternDetails.shiftsInPattern;
                 const daySlotIndex = diffDays * 2;
                 const nightSlotIndex = diffDays * 2 + 1;
-
                 return {
                     dayShift: settings.shifts[daySlotIndex % numTeams] || null,
                     nightShift: settings.shifts[nightSlotIndex % numTeams] || null
@@ -213,24 +210,20 @@
             } else { 
                 const numDistinctTeams = patternDetails.shiftsInPattern; 
                 const daysWork = patternDetails.daysOn; 
-
                 if (numDistinctTeams === 0 || daysWork === 0) return { dayShift: null, nightShift: null };
                 const fullRotationLength = numDistinctTeams * daysWork;
                 if (fullRotationLength === 0) return { dayShift: null, nightShift: null};
-
                 let dayInFullRotation = diffDays % fullRotationLength;
                 if (dayInFullRotation < 0) {
                     dayInFullRotation += fullRotationLength;
                 }
                 const teamTurnIndex = Math.floor(dayInFullRotation / daysWork);
-
                 if (settings.shifts[teamTurnIndex]) {
                     return { dayShift: settings.shifts[teamTurnIndex], nightShift: settings.shifts[teamTurnIndex] };
                 }
                 return { dayShift: null, nightShift: null }; 
             }
         }
-
 
         function renderShiftFilterButtons() {
             shiftFilterButtonsContainer.innerHTML = ''; 
@@ -275,7 +268,6 @@
             });
         }
 
-
         function renderCalendar() {  
             if (settings.viewMode === 'mobile') {
                 mainCalendarContainer.classList.remove('max-w-3xl');
@@ -302,13 +294,8 @@
             const dayHeadersBaseClasses = 'font-semibold text-center';
             const dayHeaders = (settings.startDayOfWeek === 'Monday') ? ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] : ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
             
-            selectedOffDayDate = null;
-            // Não precisa mais interagir com os elementos da IA aqui
-            // suggestActivityButton.classList.add('hidden');
-            // activitySuggestionArea.innerHTML = '';
-            // activitySuggestionArea.classList.add('hidden');
-            // selectedDayInfo.textContent = '';
-            // selectedDayInfo.classList.add('hidden');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
             dayHeaders.forEach(header => {
                 const dayHeaderCell = document.createElement('div');
@@ -330,7 +317,7 @@
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayCell = document.createElement('div');
-                let cellClasses = 'border rounded-md text-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex flex-col justify-between items-center cursor-pointer overflow-hidden';
+                let cellClasses = 'border rounded-md text-center flex flex-col justify-between items-center cursor-pointer overflow-hidden relative';
                 if (settings.viewMode === 'mobile') {
                     cellClasses += ` ${is12hPattern ? 'p-0 min-h-[60px]' : 'p-1 min-h-[50px]'}`; 
                 } else {
@@ -338,14 +325,21 @@
                 }
                 dayCell.className = cellClasses;
 
+                const currentIterationDate = new Date(year, month, day);
+                currentIterationDate.setHours(0, 0, 0, 0);
+                
+                // Animação do dia atual
+                if (currentIterationDate.getTime() === today.getTime()) {
+                    dayCell.classList.add('animate-pulse', 'border-blue-500', 'dark:border-blue-400', 'border-2');
+                }
+
                 const dayNumberSpan = document.createElement('span');
-                dayNumberSpan.className = `font-medium self-start ${settings.viewMode === 'mobile' ? 'text-xs px-1 pt-0.5' : 'text-sm px-2 pt-1'}`;
+                dayNumberSpan.className = `font-medium self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs px-1 pt-0.5' : 'text-sm px-2 pt-1'}`;
                 dayNumberSpan.textContent = day;
                 
                 const shiftsDisplayContainer = document.createElement('div');
                 shiftsDisplayContainer.className = 'w-full flex flex-col justify-around items-center flex-grow';
 
-                const currentIterationDate = new Date(year, month, day);
                 const actualShifts = getShiftsForCalendarDay(currentIterationDate); 
 
                 let displayDayShift = null;
@@ -353,18 +347,13 @@
                 let isDayOffForFilteredShift = false;
 
                 if (settings.filteredShiftLabel) {
-                    if (actualShifts.dayShift && actualShifts.dayShift.label === settings.filteredShiftLabel) {
-                        displayDayShift = actualShifts.dayShift;
-                    }
-                    if (actualShifts.nightShift && actualShifts.nightShift.label === settings.filteredShiftLabel) {
-                        displayNightShift = actualShifts.nightShift;
-                    }
+                    if (actualShifts.dayShift && actualShifts.dayShift.label === settings.filteredShiftLabel) displayDayShift = actualShifts.dayShift;
+                    if (actualShifts.nightShift && actualShifts.nightShift.label === settings.filteredShiftLabel) displayNightShift = actualShifts.nightShift;
                     isDayOffForFilteredShift = !displayDayShift && !displayNightShift;
                 } else { 
                     displayDayShift = actualShifts.dayShift;
                     displayNightShift = actualShifts.nightShift;
                 }
-
 
                 if (is12hPattern) {
                     dayCell.appendChild(dayNumberSpan); 
@@ -406,47 +395,85 @@
                         shiftLabel.textContent = displayDayShift.label;
                         shiftsDisplayContainer.appendChild(shiftLabel);
                     } else {
-                        if (settings.viewMode === 'mobile') {
-                            dayNumberSpan.classList.add('text-gray-700');
-                            dayNumberSpan.classList.add('dark:text-gray-200');
-                        } else {
-                            dayNumberSpan.classList.add('text-gray-800');
-                            dayNumberSpan.classList.add('dark:text-gray-100');
-                        }
+                        dayNumberSpan.classList.add(settings.viewMode === 'mobile' ? 'text-gray-700' : 'text-gray-800', 'dark:text-gray-200');
                         if (settings.filteredShiftLabel) dayCell.classList.add('bg-gray-50', 'dark:bg-gray-800'); 
                     }
                     dayCell.appendChild(shiftsDisplayContainer);
                 }
+
+                // Adicionar indicadores de evento e lembrete
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const reminderDate = new Date(currentIterationDate);
+                reminderDate.setDate(reminderDate.getDate() + 1);
+                const reminderDateKey = `${reminderDate.getFullYear()}-${String(reminderDate.getMonth() + 1).padStart(2, '0')}-${String(reminderDate.getDate()).padStart(2, '0')}`;
+
+                const indicatorsContainer = document.createElement('div');
+                indicatorsContainer.className = 'absolute bottom-1 right-1 flex space-x-1 z-20';
+
+                if (events[dateKey]) { // Evento neste dia
+                    const eventDot = document.createElement('div');
+                    eventDot.className = 'w-2 h-2 bg-blue-500 rounded-full ring-1 ring-white dark:ring-black';
+                    eventDot.title = `Evento: ${events[dateKey]}`;
+                    indicatorsContainer.appendChild(eventDot);
+                }
+                if (events[reminderDateKey]) { // Lembrete de evento para amanhã
+                    const reminderDot = document.createElement('div');
+                    reminderDot.className = 'w-2 h-2 bg-orange-500 rounded-full ring-1 ring-white dark:ring-black';
+                    reminderDot.title = `Lembrete: ${events[reminderDateKey]} amanhã`;
+                    indicatorsContainer.appendChild(reminderDot);
+                }
+                dayCell.appendChild(indicatorsContainer);
                 
+                // Lógica de clique para dia de folga (considerando o filtro)
                 if (settings.filteredShiftLabel && isDayOffForFilteredShift) {
-                    if (!is12hPattern || (is12hPattern && !displayDayShift && !displayNightShift)) { 
-                        dayCell.addEventListener('click', () => {
-                            clearOffDaySelection(); 
-                            dayCell.classList.add('ring-2', 'ring-teal-500', 'dark:ring-teal-400');
-                            selectedOffDayDate = currentIterationDate;
-                            // Não precisa mais mostrar o botão de sugestão de IA
-                        });
-                    }
-                } else if (!settings.filteredShiftLabel && !actualShifts.dayShift && !actualShifts.nightShift) { 
-                     dayCell.addEventListener('click', () => {
-                        clearOffDaySelection();
-                        // Não precisa mais mostrar o toast sobre selecionar ala para IA
-                     });
+                    dayCell.addEventListener('click', () => openEventModal(currentIterationDate));
                 } else { 
-                     dayCell.addEventListener('click', () => clearOffDaySelection());
+                     dayCell.addEventListener('click', () => { /* Faz nada ou mostra info do turno de outra ala */ });
                 }
                 calendarGrid.appendChild(dayCell);
             }
         }
 
-        function clearOffDaySelection() {
-            const currentlySelected = calendarGrid.querySelector('.ring-2');
-            if (currentlySelected) {
-                currentlySelected.classList.remove('ring-2', 'ring-teal-500', 'dark:ring-teal-400');
-            }
-            selectedOffDayDate = null;
-            // Não precisa mais interagir com os elementos da IA
+        function openEventModal(date) {
+            currentlyEditingEventDate = date;
+            const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            eventModalTitle.textContent = `Evento para ${date.toLocaleDateString('pt-BR')}`;
+            eventDescriptionInput.value = events[dateKey] || '';
+            eventModal.classList.remove('hidden');
         }
+
+        closeEventModalButton.addEventListener('click', () => eventModal.classList.add('hidden'));
+
+        saveEventButton.addEventListener('click', () => {
+            if (currentlyEditingEventDate) {
+                const dateKey = `${currentlyEditingEventDate.getFullYear()}-${String(currentlyEditingEventDate.getMonth() + 1).padStart(2, '0')}-${String(currentlyEditingEventDate.getDate()).padStart(2, '0')}`;
+                const description = eventDescriptionInput.value.trim();
+                if (description) {
+                    events[dateKey] = description;
+                    showToast("Evento salvo!", "success");
+                } else {
+                    delete events[dateKey]; // Remove se a descrição estiver vazia
+                    showToast("Evento removido.", "info");
+                }
+                saveEventsToLocalStorage();
+                renderCalendar();
+                eventModal.classList.add('hidden');
+            }
+        });
+
+        deleteEventButton.addEventListener('click', () => {
+            if (currentlyEditingEventDate) {
+                const dateKey = `${currentlyEditingEventDate.getFullYear()}-${String(currentlyEditingEventDate.getMonth() + 1).padStart(2, '0')}-${String(currentlyEditingEventDate.getDate()).padStart(2, '0')}`;
+                if (events[dateKey]) {
+                    delete events[dateKey];
+                    showToast("Evento deletado!", "info");
+                    saveEventsToLocalStorage();
+                    renderCalendar();
+                }
+                eventModal.classList.add('hidden');
+            }
+        });
+
 
         function getContrastColor(hexColor) { 
             if (!hexColor || hexColor.length < 7) return '#000000'; 
@@ -563,6 +590,7 @@
             settings.scheduleType = scheduleTypeSelect.value;
             settings.referenceDate = referenceDateInput.value;
             settings.startDayOfWeek = startDayOfWeekSelect.value;
+            settings.filteredShiftLabel = null; // Reseta o filtro ao salvar novas configurações
             
             const success = saveSettingsToLocalStorage(); 
             if (success) {
@@ -598,14 +626,14 @@
         // Inicialização
         populateScheduleTypes();
         loadSettingsFromLocalStorage(); 
+        loadEventsFromLocalStorage();
+        applySettingsAndRender();
 
     </script>
     <style> 
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
         .modal.hidden { opacity: 0; visibility: hidden; }
-        .prose ul { list-style-type: disc; padding-left: 1.5em;} /* Estilo para listas da Gemini, se necessário no futuro */
-        .prose li { margin-bottom: 0.5em;}
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 min-h-screen flex flex-col items-center">
@@ -624,7 +652,7 @@
         </div>
 
         <div id="shiftFilterButtonsContainer" class="my-4 flex flex-wrap justify-center">
-            </div>
+        </div>
         
         <div class="flex justify-between items-center mb-4">
             <button id="prevMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
@@ -637,6 +665,8 @@
         </div>
         <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
 
+        <!-- Elementos de IA removidos da exibição principal, mas ainda usados para o modal de eventos.
+             Mantendo a estrutura do HTML caso a funcionalidade de IA seja reativada no futuro, mas ocultando-a. -->
         <div class="mt-6 text-center hidden"> 
             <div id="selectedDayInfo" class="text-sm text-gray-600 dark:text-gray-300 mb-2"></div>
             <button id="suggestActivityButton" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors text-sm">
@@ -647,6 +677,7 @@
         </div>
     </div>
 
+    <!-- Modal de Configurações da Escala -->
     <div id="settingsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -679,6 +710,30 @@
             <div class="mt-8 flex justify-center">
                 <button id="saveSettingsButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors">
                     Salvar Configurações
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Eventos -->
+    <div id="eventModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="eventModalTitle" class="text-xl font-semibold text-gray-800 dark:text-gray-100">Adicionar/Editar Evento</h3>
+                <button id="closeEventModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div>
+                <label for="eventDescriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição do Evento:</label>
+                <input type="text" id="eventDescriptionInput" placeholder="Ex: Aniversário do João" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            </div>
+            <div class="mt-6 flex justify-between">
+                <button id="deleteEventButton" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors">
+                    Deletar
+                </button>
+                <button id="saveEventButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors">
+                    Salvar
                 </button>
             </div>
         </div>
