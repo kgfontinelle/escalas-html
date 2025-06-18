@@ -242,7 +242,9 @@
             };
             shiftFilterButtonsContainer.appendChild(showAllButton);
             
-            settings.shifts.forEach(shift => {
+            const sortedShifts = [...settings.shifts].sort((a, b) => a.label.localeCompare(b.label));
+
+            sortedShifts.forEach(shift => {
                 const button = document.createElement('button');
                 button.textContent = `Ala ${shift.label}`;
                 button.style.backgroundColor = settings.filteredShiftLabel === shift.label ? shift.color : '';
@@ -328,7 +330,6 @@
                 const currentIterationDate = new Date(year, month, day);
                 currentIterationDate.setHours(0, 0, 0, 0);
                 
-                // Animação do dia atual
                 if (currentIterationDate.getTime() === today.getTime()) {
                     dayCell.classList.add('animate-pulse', 'border-blue-500', 'dark:border-blue-400', 'border-2');
                 }
@@ -344,12 +345,10 @@
 
                 let displayDayShift = null;
                 let displayNightShift = null;
-                let isDayOffForFilteredShift = false;
 
                 if (settings.filteredShiftLabel) {
                     if (actualShifts.dayShift && actualShifts.dayShift.label === settings.filteredShiftLabel) displayDayShift = actualShifts.dayShift;
                     if (actualShifts.nightShift && actualShifts.nightShift.label === settings.filteredShiftLabel) displayNightShift = actualShifts.nightShift;
-                    isDayOffForFilteredShift = !displayDayShift && !displayNightShift;
                 } else { 
                     displayDayShift = actualShifts.dayShift;
                     displayNightShift = actualShifts.nightShift;
@@ -401,35 +400,23 @@
                     dayCell.appendChild(shiftsDisplayContainer);
                 }
 
-                // Adicionar indicadores de evento e lembrete
                 const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const reminderDate = new Date(currentIterationDate);
-                reminderDate.setDate(reminderDate.getDate() + 1);
-                const reminderDateKey = `${reminderDate.getFullYear()}-${String(reminderDate.getMonth() + 1).padStart(2, '0')}-${String(reminderDate.getDate()).padStart(2, '0')}`;
-
+                
                 const indicatorsContainer = document.createElement('div');
                 indicatorsContainer.className = 'absolute bottom-1 right-1 flex space-x-1 z-20';
 
-                if (events[dateKey]) { // Evento neste dia
+                if (events[dateKey]) { 
                     const eventDot = document.createElement('div');
                     eventDot.className = 'w-2 h-2 bg-blue-500 rounded-full ring-1 ring-white dark:ring-black';
                     eventDot.title = `Evento: ${events[dateKey]}`;
                     indicatorsContainer.appendChild(eventDot);
                 }
-                if (events[reminderDateKey]) { // Lembrete de evento para amanhã
-                    const reminderDot = document.createElement('div');
-                    reminderDot.className = 'w-2 h-2 bg-orange-500 rounded-full ring-1 ring-white dark:ring-black';
-                    reminderDot.title = `Lembrete: ${events[reminderDateKey]} amanhã`;
-                    indicatorsContainer.appendChild(reminderDot);
-                }
+                
                 dayCell.appendChild(indicatorsContainer);
                 
-                // Lógica de clique para dia de folga (considerando o filtro)
-                if (settings.filteredShiftLabel && isDayOffForFilteredShift) {
-                    dayCell.addEventListener('click', () => openEventModal(currentIterationDate));
-                } else { 
-                     dayCell.addEventListener('click', () => { /* Faz nada ou mostra info do turno de outra ala */ });
-                }
+                // CORREÇÃO: Permitir clique em qualquer dia para abrir o modal de eventos.
+                dayCell.addEventListener('click', () => openEventModal(currentIterationDate));
+
                 calendarGrid.appendChild(dayCell);
             }
         }
@@ -452,7 +439,7 @@
                     events[dateKey] = description;
                     showToast("Evento salvo!", "success");
                 } else {
-                    delete events[dateKey]; // Remove se a descrição estiver vazia
+                    delete events[dateKey]; 
                     showToast("Evento removido.", "info");
                 }
                 saveEventsToLocalStorage();
@@ -590,7 +577,7 @@
             settings.scheduleType = scheduleTypeSelect.value;
             settings.referenceDate = referenceDateInput.value;
             settings.startDayOfWeek = startDayOfWeekSelect.value;
-            settings.filteredShiftLabel = null; // Reseta o filtro ao salvar novas configurações
+            settings.filteredShiftLabel = null; 
             
             const success = saveSettingsToLocalStorage(); 
             if (success) {
@@ -665,12 +652,19 @@
         </div>
         <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
 
-        <footer class="text-center mt-8">
+        <!-- Legenda de Eventos -->
+        <div class="mt-4 flex justify-start items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
+            <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <span class="font-semibold">Dias com agenda</span>
+        </div>
+
+        <footer class="text-center mt-6">
             <div class="flex justify-center items-center space-x-2 text-xs text-gray-400 dark:text-gray-500">
                 <span>By KleDer</span>
                 <span>|</span>
                 <a href="mailto:kgfontinelle@gmail.com" class="hover:text-blue-500">kgfontinelle@gmail.com</a>
             </div>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.0</p>
         </footer>
     </div>
 
