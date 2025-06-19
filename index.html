@@ -23,6 +23,7 @@
         const toggleViewButton = document.getElementById('toggleViewButton'); 
         const mainCalendarContainer = document.getElementById('mainCalendarContainer'); 
         const shiftFilterButtonsContainer = document.getElementById('shiftFilterButtonsContainer'); 
+        const holidayLegendContainer = document.getElementById('holidayLegendContainer'); // Nova legenda
 
         // Elementos para Eventos
         const eventModal = document.getElementById('eventModal');
@@ -461,31 +462,61 @@
 
                 const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 
-                const indicatorsContainer = document.createElement('div');
-                indicatorsContainer.className = 'absolute top-1 right-1 flex flex-col space-y-1 z-20'; // Alterado para canto superior direito e coluna
-
+                const indicatorsTopContainer = document.createElement('div');
+                indicatorsTopContainer.className = 'absolute top-1 right-1 flex space-x-1 z-20';
+                
                 if (holidays[year] && holidays[year][dateKey]) {
                     const holidayDot = document.createElement('div');
-                    holidayDot.className = 'w-2 h-2 bg-red-500 rounded-full ring-1 ring-white dark:ring-black self-end';
+                    holidayDot.className = 'w-2 h-2 bg-red-500 rounded-full ring-1 ring-white dark:ring-black';
                     holidayDot.title = `Feriado: ${holidays[year][dateKey]}`;
-                    indicatorsContainer.appendChild(holidayDot);
+                    indicatorsTopContainer.appendChild(holidayDot);
                 }
 
-                const eventIndicatorsContainer = document.createElement('div');
-                eventIndicatorsContainer.className = 'absolute bottom-1 left-1 flex space-x-1 z-20'; // Alterado para canto inferior esquerdo
+                const indicatorsBottomContainer = document.createElement('div');
+                indicatorsBottomContainer.className = 'absolute bottom-1 left-1 flex space-x-1 z-20';
 
                 if (events[dateKey]) { 
                     const eventDot = document.createElement('div');
                     eventDot.className = 'w-2 h-2 bg-blue-500 rounded-full ring-1 ring-white dark:ring-black';
                     eventDot.title = `Evento: ${events[dateKey]}`;
-                    eventIndicatorsContainer.appendChild(eventDot);
+                    indicatorsBottomContainer.appendChild(eventDot);
                 }
                 
-                dayCell.appendChild(indicatorsContainer);
-                dayCell.appendChild(eventIndicatorsContainer);
+                dayCell.appendChild(indicatorsTopContainer);
+                dayCell.appendChild(indicatorsBottomContainer);
                 
                 dayCell.addEventListener('click', () => openEventModal(currentIterationDate));
                 calendarGrid.appendChild(dayCell);
+            }
+
+            // --- LÓGICA ATUALIZADA PARA LEGENDA DE FERIADOS ---
+            holidayLegendContainer.innerHTML = ''; // Limpa legenda anterior
+
+            const holidaysThisMonth = [];
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                if (holidays[year] && holidays[year][dateKey]) {
+                    holidaysThisMonth.push({ day, name: holidays[year][dateKey] });
+                }
+            }
+
+            if (holidaysThisMonth.length > 0) {
+                holidaysThisMonth.forEach(holiday => {
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'flex items-center space-x-2';
+                    
+                    const dot = document.createElement('div');
+                    dot.className = 'w-2 h-2 bg-red-500 rounded-full flex-shrink-0';
+                    
+                    const text = document.createElement('span');
+                    text.className = 'font-semibold';
+                    const formattedDate = `${String(holiday.day).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}`;
+                    text.textContent = `${formattedDate} - ${holiday.name}`;
+
+                    legendItem.appendChild(dot);
+                    legendItem.appendChild(text);
+                    holidayLegendContainer.appendChild(legendItem);
+                });
             }
         }
 
@@ -726,9 +757,9 @@
                 <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <span class="font-semibold">Dias com agenda</span>
             </div>
-            <div class="flex items-center space-x-2">
-                <div class="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span class="font-semibold">Dias de feriado</span>
+            <!-- Container para a legenda de feriados dinâmica -->
+            <div id="holidayLegendContainer" class="flex flex-col items-start space-y-1">
+                <!-- A legenda de feriados será inserida aqui pelo JavaScript -->
             </div>
         </div>
 
