@@ -429,7 +429,7 @@
                     dayCell.appendChild(dayNumberSpan); 
                     
                     const dayShiftDiv = document.createElement('div');
-                    dayShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-xs' : 'text-sm'}`;
+                    dayShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-sm' : 'text-base'}`;
                     if (displayDayShift) {
                         dayShiftDiv.style.backgroundColor = displayDayShift.color;
                         dayShiftDiv.style.color = getContrastColor(displayDayShift.color);
@@ -441,7 +441,7 @@
                     shiftsDisplayContainer.appendChild(dayShiftDiv);
 
                     const nightShiftDiv = document.createElement('div');
-                    nightShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-xs' : 'text-sm'}`;
+                    nightShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-sm' : 'text-base'}`;
                      if (displayNightShift) {
                         nightShiftDiv.style.backgroundColor = displayNightShift.color;
                         nightShiftDiv.style.color = getContrastColor(displayNightShift.color);
@@ -460,7 +460,7 @@
                         const contrastColor = getContrastColor(displayDayShift.color);
                         dayNumberSpan.style.color = contrastColor; 
                         const shiftLabel = document.createElement('span');
-                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-xs mt-0.5' : 'text-sm mt-1'}`;
+                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-sm mt-0.5' : 'text-base mt-1'}`;
                         shiftLabel.style.color = contrastColor; 
                         shiftLabel.textContent = displayDayShift.label;
                         shiftsDisplayContainer.appendChild(shiftLabel);
