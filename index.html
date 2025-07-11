@@ -406,7 +406,7 @@
                 }
 
                 const dayNumberSpan = document.createElement('span');
-                dayNumberSpan.className = `font-medium self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs px-1 pt-0.5' : 'text-sm px-2 pt-1'}`;
+                dayNumberSpan.className = `font-bold self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs pl-2 pt-1' : 'text-sm px-2 pt-1'}`;
                 dayNumberSpan.textContent = day;
                 
                 const shiftsDisplayContainer = document.createElement('div');
@@ -429,7 +429,7 @@
                     dayCell.appendChild(dayNumberSpan); 
                     
                     const dayShiftDiv = document.createElement('div');
-                    dayShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-[10px]' : 'text-xs'}`;
+                    dayShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-xs' : 'text-sm'}`;
                     if (displayDayShift) {
                         dayShiftDiv.style.backgroundColor = displayDayShift.color;
                         dayShiftDiv.style.color = getContrastColor(displayDayShift.color);
@@ -441,7 +441,7 @@
                     shiftsDisplayContainer.appendChild(dayShiftDiv);
 
                     const nightShiftDiv = document.createElement('div');
-                    nightShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-[10px]' : 'text-xs'}`;
+                    nightShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-xs' : 'text-sm'}`;
                      if (displayNightShift) {
                         nightShiftDiv.style.backgroundColor = displayNightShift.color;
                         nightShiftDiv.style.color = getContrastColor(displayNightShift.color);
@@ -460,7 +460,7 @@
                         const contrastColor = getContrastColor(displayDayShift.color);
                         dayNumberSpan.style.color = contrastColor; 
                         const shiftLabel = document.createElement('span');
-                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-[10px] mt-0.5' : 'text-xs mt-1'}`;
+                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-xs mt-0.5' : 'text-sm mt-1'}`;
                         shiftLabel.style.color = contrastColor; 
                         shiftLabel.textContent = displayDayShift.label;
                         shiftsDisplayContainer.appendChild(shiftLabel);
@@ -559,7 +559,6 @@
                 const recurringDateKey = `${String(currentlyEditingEventDate.getMonth() + 1).padStart(2, '0')}-${String(currentlyEditingEventDate.getDate()).padStart(2, '0')}`;
                 const description = eventDescriptionInput.value.trim();
 
-                // Limpa eventos antigos para evitar duplicatas
                 delete events[dateKey];
                 delete recurringEvents[recurringDateKey];
 
