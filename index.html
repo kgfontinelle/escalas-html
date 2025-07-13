@@ -39,7 +39,7 @@
         let currentDate = new Date();
         let settings = {
             scheduleType: 'ABCD_24_72', 
-            referenceDate: '2025-07-11', // CORREÇÃO: Referência para 24x72 (Ala A)
+            referenceDate: '2025-06-01', 
             startDayOfWeek: 'Sunday',    
             shifts: [ 
                 { label: 'A', color: '#FF0000' }, 
@@ -190,7 +190,7 @@
         
         function initializeDefaultSettings() {
             settings.scheduleType = 'ABCD_24_72';
-            settings.referenceDate = '2025-07-11'; // CORREÇÃO: Referência para 24x72 (Ala A)
+            settings.referenceDate = '2025-07-11'; 
             settings.startDayOfWeek = 'Sunday';
             settings.viewMode = 'desktop';
             settings.filteredShiftLabel = null;
@@ -414,7 +414,7 @@
                 }
 
                 const dayNumberSpan = document.createElement('span');
-                dayNumberSpan.className = `font-bold self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs pl-8 pt-2' : 'text-sm px-4 pt-1'}`;
+                dayNumberSpan.className = `font-bold self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs pl-5 pt-2' : 'text-sm px-2 pt-1'}`;
                 dayNumberSpan.textContent = day;
                 
                 const shiftsDisplayContainer = document.createElement('div');
