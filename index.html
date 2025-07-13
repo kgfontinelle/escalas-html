@@ -39,7 +39,7 @@
         let currentDate = new Date();
         let settings = {
             scheduleType: 'ABCD_24_72', 
-            referenceDate: '2025-06-01', 
+            referenceDate: '2025-07-11', // Referência para Ala A estar em 11/07, fazendo C cair em 13/07
             startDayOfWeek: 'Sunday',    
             shifts: [ 
                 { label: 'A', color: '#FF0000' }, 
@@ -190,7 +190,7 @@
         
         function initializeDefaultSettings() {
             settings.scheduleType = 'ABCD_24_72';
-            settings.referenceDate = '2025-07-11'; 
+            settings.referenceDate = '2025-07-11';
             settings.startDayOfWeek = 'Sunday';
             settings.viewMode = 'desktop';
             settings.filteredShiftLabel = null;
@@ -398,12 +398,7 @@
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayCell = document.createElement('div');
-                let cellClasses = 'border rounded-md text-center flex flex-col justify-between items-center cursor-pointer overflow-hidden relative';
-                if (settings.viewMode === 'mobile') {
-                    cellClasses += ` ${is12hPattern ? 'p-0 min-h-[60px]' : 'p-1 min-h-[50px]'}`; 
-                } else {
-                    cellClasses += ` ${is12hPattern ? 'p-0 min-h-[80px]' : 'p-2 min-h-[70px]'}`; 
-                }
+                let cellClasses = 'border rounded-md text-center flex flex-col justify-start items-center cursor-pointer overflow-hidden relative aspect-square';
                 dayCell.className = cellClasses;
 
                 const currentIterationDate = new Date(year, month, day);
@@ -414,7 +409,7 @@
                 }
 
                 const dayNumberSpan = document.createElement('span');
-                dayNumberSpan.className = `font-bold self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs pl-5 pt-2' : 'text-sm px-2 pt-1'}`;
+                dayNumberSpan.className = `font-bold self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs p-1.5' : 'text-sm p-2'}`;
                 dayNumberSpan.textContent = day;
                 
                 const shiftsDisplayContainer = document.createElement('div');
@@ -468,7 +463,7 @@
                         const contrastColor = getContrastColor(displayDayShift.color);
                         dayNumberSpan.style.color = contrastColor; 
                         const shiftLabel = document.createElement('span');
-                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-lg mt-0.5' : 'text-xl mt-1'}`;
+                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-lg' : 'text-xl'}`;
                         shiftLabel.style.color = contrastColor; 
                         shiftLabel.textContent = displayDayShift.label;
                         shiftsDisplayContainer.appendChild(shiftLabel);
