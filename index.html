@@ -39,7 +39,7 @@
         let currentDate = new Date();
         let settings = {
             scheduleType: 'ABCD_24_72', 
-            referenceDate: '2025-06-01', 
+            referenceDate: '2025-07-11', // CORREÇÃO: Referência para 24x72 (Ala A)
             startDayOfWeek: 'Sunday',    
             shifts: [ 
                 { label: 'A', color: '#FF0000' }, 
@@ -190,7 +190,7 @@
         
         function initializeDefaultSettings() {
             settings.scheduleType = 'ABCD_24_72';
-            settings.referenceDate = '2025-06-01';
+            settings.referenceDate = '2025-07-11'; // CORREÇÃO: Referência para 24x72 (Ala A)
             settings.startDayOfWeek = 'Sunday';
             settings.viewMode = 'desktop';
             settings.filteredShiftLabel = null;
@@ -734,7 +734,7 @@
             if (settings.scheduleType === 'SECOM_UR_12H') {
                 settings.referenceDate = '2025-07-13';
             } else if (settings.scheduleType === 'ABCD_24_72') {
-                settings.referenceDate = '2025-06-01';
+                settings.referenceDate = '2025-07-11';
             }
 
             const success = saveSettingsToLocalStorage(); 
@@ -751,7 +751,7 @@
             if (newScheduleType === 'SECOM_UR_12H') {
                 settings.referenceDate = '2025-07-13';
             } else if (newScheduleType === 'ABCD_24_72') {
-                settings.referenceDate = '2025-06-01';
+                settings.referenceDate = '2025-07-11';
             }
             
             settings.filteredShiftLabel = null; 
