@@ -17,8 +17,6 @@
         const closeSettingsButton = document.getElementById('closeSettingsButton');
         const saveSettingsButton = document.getElementById('saveSettingsButton');
         const scheduleTypeSelect = document.getElementById('scheduleType');
-        const referenceDateInput = document.getElementById('referenceDate');
-        const startDayOfWeekSelect = document.getElementById('startDayOfWeek');
         const shiftContainer = document.getElementById('shiftSettingsContainer');
         const toggleViewButton = document.getElementById('toggleViewButton'); 
         const mainCalendarContainer = document.getElementById('mainCalendarContainer'); 
@@ -32,6 +30,11 @@
         const saveEventButton = document.getElementById('saveEventButton');
         const deleteEventButton = document.getElementById('deleteEventButton');
         const closeEventModalButton = document.getElementById('closeEventModalButton');
+        
+        // Elementos para Dicas
+        const tipsModal = document.getElementById('tipsModal');
+        const openTipsButton = document.getElementById('openTipsButton');
+        const closeTipsModalButton = document.getElementById('closeTipsModalButton');
         
         let currentDate = new Date();
         let settings = {
@@ -53,16 +56,18 @@
         let tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings));
         let currentlyEditingEventDate = null; 
 
+        // Opções de escala simplificadas
         const schedulePatterns = {
-            'ABCD_24_72': { name: 'ABCD (24/72 - 1 dia trab / 3 folga)', shiftsInPattern: 4, daysOn: 1, daysOff: 3 },
-            'CUSTOM_5TEAM_12H_DN': { name: '5 Alas - Ciclo D/N (12h)', shiftsInPattern: 5, isComplex12h: true, daysInCycle: 5 },
-            '5TEAM_12_48': { name: '5 Alas - Turnos 12h (12/48)', shiftsInPattern: 5, isSimple12h: true, daysInCycle: 2.5 }, 
-            'ABC_24_48': { name: 'ABC (24/48 - 1 dia trab / 2 folga)', shiftsInPattern: 3, daysOn: 1, daysOff: 2 },
-            'AABBCC_48_96': { name: 'AABBCC (48/96 - 2 dias trab / 4 folga)', shiftsInPattern: 3, daysOn: 2, daysOff: 4 },
+            'ABCD_24_72': { name: 'ABCD (24/72)', shiftsInPattern: 4, daysOn: 1, daysOff: 3 },
+            'SECOM_UR_12H': { name: 'SECOM / UR', shiftsInPattern: 5, isComplex12h: true, daysInCycle: 5 },
         };
 
-        const custom5TeamPatternMap = [
-            [0, 4], [1, 0], [2, 1], [3, 2], [4, 3]  
+        const secomUrPatternMap = [
+            [4, 3], // Dia 1 do ciclo: DS=I(4), NS=H(3)
+            [0, 4], // Dia 2 do ciclo: DS=E(0), NS=I(4)
+            [1, 0], // Dia 3 do ciclo: DS=F(1), NS=E(0)
+            [2, 1], // Dia 4 do ciclo: DS=G(2), NS=F(1)
+            [3, 2]  // Dia 5 do ciclo: DS=H(3), NS=G(2)
         ];
 
         // --- Lógica de Feriados ---
@@ -201,11 +206,13 @@
                     { label: 'A', color: '#FF0000' }, { label: 'B', color: '#00FF00' },
                     { label: 'C', color: '#0000FF' }, { label: 'D', color: '#FFFF00' }
                 ];
-            } else if (settings.scheduleType === 'CUSTOM_5TEAM_12H_DN') {
+            } else if (settings.scheduleType === 'SECOM_UR_12H') {
                 defaultShifts = [
-                    { label: 'G', color: '#FF0000' }, { label: 'H', color: '#00FF00' },
-                    { label: 'I', color: '#0000FF' }, { label: 'J', color: '#FFFF00' },
-                    { label: 'F', color: '#800080' }
+                    { label: 'E', color: '#ff9800' }, // Orange
+                    { label: 'F', color: '#e91e63' }, // Pink
+                    { label: 'G', color: '#00bcd4' }, // Cyan
+                    { label: 'H', color: '#795548' }, // Brown
+                    { label: 'I', color: '#9e9e9e' }  // Grey
                 ];
             } else {
                  for (let i = 0; i < numShiftsRequired; i++) {
@@ -260,9 +267,10 @@
             const diffDays = Math.floor((currentDateUtc - refDateUtc) / (1000 * 60 * 60 * 24));
 
             if (patternDetails.isComplex12h) { 
+                let patternMap = secomUrPatternMap;
                 const cycleDay = (diffDays % patternDetails.daysInCycle + patternDetails.daysInCycle) % patternDetails.daysInCycle;
-                const dayShiftTeamIndex = custom5TeamPatternMap[cycleDay][0];
-                const nightShiftTeamIndex = custom5TeamPatternMap[cycleDay][1];
+                const dayShiftTeamIndex = patternMap[cycleDay][0];
+                const nightShiftTeamIndex = patternMap[cycleDay][1];
                 return {
                     dayShift: settings.shifts[dayShiftTeamIndex] || null,
                     nightShift: settings.shifts[nightShiftTeamIndex] || null
@@ -406,7 +414,7 @@
                 }
 
                 const dayNumberSpan = document.createElement('span');
-                dayNumberSpan.className = `font-bold self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs pl-2 pt-1' : 'text-sm px-2 pt-1'}`;
+                dayNumberSpan.className = `font-bold self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs pl-8 pt-2' : 'text-sm px-4 pt-1'}`;
                 dayNumberSpan.textContent = day;
                 
                 const shiftsDisplayContainer = document.createElement('div');
@@ -460,7 +468,7 @@
                         const contrastColor = getContrastColor(displayDayShift.color);
                         dayNumberSpan.style.color = contrastColor; 
                         const shiftLabel = document.createElement('span');
-                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-sm mt-0.5' : 'text-base mt-1'}`;
+                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-lg mt-0.5' : 'text-xl mt-1'}`;
                         shiftLabel.style.color = contrastColor; 
                         shiftLabel.textContent = displayDayShift.label;
                         shiftsDisplayContainer.appendChild(shiftLabel);
@@ -547,7 +555,11 @@
             const recurringDateKey = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             
             eventModalTitle.textContent = `Evento para ${date.toLocaleDateString('pt-BR')}`;
-            eventDescriptionInput.value = recurringEvents[recurringDateKey] || events[dateKey] || '';
+            
+            const recurringText = recurringEvents[recurringDateKey] || '';
+            const eventText = events[dateKey] || '';
+            eventDescriptionInput.value = [recurringText, eventText].filter(Boolean).join('\n');
+
             eventModal.classList.remove('hidden');
         }
 
@@ -557,22 +569,24 @@
             if (currentlyEditingEventDate) {
                 const dateKey = `${currentlyEditingEventDate.getFullYear()}-${String(currentlyEditingEventDate.getMonth() + 1).padStart(2, '0')}-${String(currentlyEditingEventDate.getDate()).padStart(2, '0')}`;
                 const recurringDateKey = `${String(currentlyEditingEventDate.getMonth() + 1).padStart(2, '0')}-${String(currentlyEditingEventDate.getDate()).padStart(2, '0')}`;
-                const description = eventDescriptionInput.value.trim();
+                const descriptionLines = eventDescriptionInput.value.trim().split('\n');
 
-                delete events[dateKey];
-                delete recurringEvents[recurringDateKey];
+                const niverLines = descriptionLines.filter(line => line.toLowerCase().includes('niver'));
+                const eventLines = descriptionLines.filter(line => !line.toLowerCase().includes('niver'));
 
-                if (description) {
-                    if (description.toLowerCase().includes('niver')) {
-                        recurringEvents[recurringDateKey] = description;
-                        showToast("Aniversário salvo!", "success");
-                    } else {
-                        events[dateKey] = description;
-                        showToast("Evento salvo!", "success");
-                    }
+                if (niverLines.length > 0) {
+                    recurringEvents[recurringDateKey] = niverLines.join('\n');
                 } else {
-                    showToast("Evento removido.", "info");
+                    delete recurringEvents[recurringDateKey];
                 }
+
+                if (eventLines.length > 0) {
+                    events[dateKey] = eventLines.join('\n');
+                } else {
+                    delete events[dateKey];
+                }
+
+                showToast("Eventos salvos!", "success");
                 saveEventsToLocalStorage();
                 renderCalendar();
                 eventModal.classList.add('hidden');
@@ -619,8 +633,6 @@
         }
         function updateSettingsUIInputs() {  
             scheduleTypeSelect.value = settings.scheduleType;
-            referenceDateInput.value = settings.referenceDate;
-            startDayOfWeekSelect.value = settings.startDayOfWeek;
             shiftContainer.innerHTML = ''; 
             
             const patternDetails = schedulePatterns[settings.scheduleType];
@@ -634,11 +646,11 @@
                     { label: 'A', color: '#FF0000' }, { label: 'B', color: '#00FF00' },
                     { label: 'C', color: '#0000FF' }, { label: 'D', color: '#FFFF00' }
                 ];
-            } else if (settings.scheduleType === 'CUSTOM_5TEAM_12H_DN') {
+            } else if (settings.scheduleType === 'SECOM_UR_12H') {
                 currentDefaultShifts = [
-                    { label: 'G', color: '#FF0000' }, { label: 'H', color: '#00FF00' },
-                    { label: 'I', color: '#0000FF' }, { label: 'J', color: '#FFFF00' },
-                    { label: 'F', color: '#800080' }
+                    { label: 'E', color: '#ff9800' }, { label: 'F', color: '#e91e63' },
+                    { label: 'G', color: '#00bcd4' }, { label: 'H', color: '#795548' },
+                    { label: 'I', color: '#9e9e9e' }
                 ];
             } else { 
                 for (let i = 0; i < numShiftsToDisplay; i++) {
@@ -717,10 +729,14 @@
         });
         saveSettingsButton.addEventListener('click', async () => { 
             settings.scheduleType = scheduleTypeSelect.value;
-            settings.referenceDate = referenceDateInput.value;
-            settings.startDayOfWeek = startDayOfWeekSelect.value;
             settings.filteredShiftLabel = null; 
             
+            if (settings.scheduleType === 'SECOM_UR_12H') {
+                settings.referenceDate = '2025-07-13';
+            } else if (settings.scheduleType === 'ABCD_24_72') {
+                settings.referenceDate = '2025-06-01';
+            }
+
             const success = saveSettingsToLocalStorage(); 
             if (success) {
                 settingsModal.classList.add('hidden');
@@ -731,9 +747,19 @@
             const newScheduleType = e.target.value;
             settings.scheduleType = newScheduleType; 
             initializeDefaultShiftsForScheduleType(); 
+            
+            if (newScheduleType === 'SECOM_UR_12H') {
+                settings.referenceDate = '2025-07-13';
+            } else if (newScheduleType === 'ABCD_24_72') {
+                settings.referenceDate = '2025-06-01';
+            }
+            
             settings.filteredShiftLabel = null; 
             updateSettingsUIInputs(); 
         });
+
+        openTipsButton.addEventListener('click', () => tipsModal.classList.remove('hidden'));
+        closeTipsModalButton.addEventListener('click', () => tipsModal.classList.add('hidden'));
 
         function showToast(message, type = 'info') {  
             const toast = document.getElementById('toastNotification');
@@ -775,9 +801,14 @@
             <button id="toggleViewButton" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
                 Alternar Visualização
             </button>
-            <button id="openSettingsButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
-                Configurações
-            </button>
+            <div class="flex items-center space-x-2">
+                <button id="openTipsButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
+                    Dicas
+                </button>
+                <button id="openSettingsButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-sm transition-colors">
+                    Configurações
+                </button>
+            </div>
         </div>
 
         <div id="shiftFilterButtonsContainer" class="my-4 flex flex-wrap justify-center">
@@ -816,7 +847,7 @@
                 <span>|</span>
                 <a href="mailto:kgfontinelle@gmail.com" class="hover:text-blue-500">kgfontinelle@gmail.com</a>
             </div>
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.02</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.03</p>
         </footer>
     </div>
 
@@ -833,17 +864,6 @@
                 <div>
                     <label for="scheduleType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Escala:</label>
                     <select id="scheduleType" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></select>
-                </div>
-                <div>
-                    <label for="referenceDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de Início do Ciclo (Ala 1):</label>
-                    <input type="date" id="referenceDate" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                </div>
-                <div>
-                    <label for="startDayOfWeek" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Começar Semana Em:</label>
-                    <select id="startDayOfWeek" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <option value="Sunday">Domingo</option>
-                        <option value="Monday">Segunda-feira</option>
-                    </select>
                 </div>
                 <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
                     <h4 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2">Configuração das Alas:</h4>
@@ -868,8 +888,8 @@
                 </button>
             </div>
             <div>
-                <label for="eventDescriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição do Evento (use "niver" para aniversários):</label>
-                <input type="text" id="eventDescriptionInput" placeholder="Ex: Niver do João" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <label for="eventDescriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição(ões) do Evento (use "niver" para aniversários; uma por linha):</label>
+                <textarea id="eventDescriptionInput" placeholder="Ex: GSV&#10;Niver do João&#10;Consulta médica" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="3"></textarea>
             </div>
             <div class="mt-6 flex justify-between">
                 <button id="deleteEventButton" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors">
@@ -879,6 +899,24 @@
                     Salvar
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal de Dicas -->
+    <div id="tipsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Dicas de Uso</h3>
+                <button id="closeTipsModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <ul class="space-y-3 text-gray-700 dark:text-gray-300 list-disc list-inside">
+                <li>Para que os aniversários fiquem gravados para os anos subsequentes, escreva "niver" antes do nome da pessoa.</li>
+                <li>Nas configurações, escolha qual escala quer ver e depois clique em "Salvar".</li>
+                <li>Caso queira modificar as cores ou as legendas das alas, fique à vontade na tela de configurações.</li>
+                <li>Clique em qualquer dia para adicionar um evento pessoal.</li>
+            </ul>
         </div>
     </div>
 
