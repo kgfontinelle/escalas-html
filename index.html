@@ -39,7 +39,7 @@
         let currentDate = new Date();
         let settings = {
             scheduleType: 'ABCD_24_72', 
-            referenceDate: '2025-07-11', // Referência para Ala A estar em 11/07, fazendo C cair em 13/07
+            referenceDate: '2025-07-11', 
             startDayOfWeek: 'Sunday',    
             shifts: [ 
                 { label: 'A', color: '#FF0000' }, 
@@ -50,24 +50,23 @@
             viewMode: 'desktop',
             filteredShiftLabel: null 
         };
-        let events = {}; // Eventos não recorrentes
-        let recurringEvents = {}; // Aniversários e outros eventos anuais
+        let events = {}; 
+        let recurringEvents = {}; 
         let holidays = {};
         let tempSettingsBeforeEdit = JSON.parse(JSON.stringify(settings));
         let currentlyEditingEventDate = null; 
 
-        // Opções de escala simplificadas
         const schedulePatterns = {
             'ABCD_24_72': { name: 'ABCD (24/72)', shiftsInPattern: 4, daysOn: 1, daysOff: 3 },
             'SECOM_UR_12H': { name: 'SECOM / UR', shiftsInPattern: 5, isComplex12h: true, daysInCycle: 5 },
         };
 
         const secomUrPatternMap = [
-            [4, 3], // Dia 1 do ciclo: DS=I(4), NS=H(3)
-            [0, 4], // Dia 2 do ciclo: DS=E(0), NS=I(4)
-            [1, 0], // Dia 3 do ciclo: DS=F(1), NS=E(0)
-            [2, 1], // Dia 4 do ciclo: DS=G(2), NS=F(1)
-            [3, 2]  // Dia 5 do ciclo: DS=H(3), NS=G(2)
+            [4, 3], 
+            [0, 4], 
+            [1, 0], 
+            [2, 1], 
+            [3, 2]  
         ];
 
         // --- Lógica de Feriados ---
@@ -208,11 +207,11 @@
                 ];
             } else if (settings.scheduleType === 'SECOM_UR_12H') {
                 defaultShifts = [
-                    { label: 'E', color: '#ff9800' }, // Orange
-                    { label: 'F', color: '#e91e63' }, // Pink
-                    { label: 'G', color: '#00bcd4' }, // Cyan
-                    { label: 'H', color: '#795548' }, // Brown
-                    { label: 'I', color: '#9e9e9e' }  // Grey
+                    { label: 'E', color: '#ff9800' }, 
+                    { label: 'F', color: '#e91e63' }, 
+                    { label: 'G', color: '#00bcd4' }, 
+                    { label: 'H', color: '#795548' }, 
+                    { label: 'I', color: '#9e9e9e' }  
                 ];
             } else {
                  for (let i = 0; i < numShiftsRequired; i++) {
@@ -398,7 +397,13 @@
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayCell = document.createElement('div');
-                let cellClasses = 'border rounded-md text-center flex flex-col justify-start items-center cursor-pointer overflow-hidden relative aspect-square';
+                let cellClasses = 'border rounded-md text-center flex flex-col justify-start items-center cursor-pointer overflow-hidden relative';
+                // REVERTENDO PARA LAYOUT ESTÁVEL
+                if (settings.viewMode === 'mobile') {
+                    cellClasses += ` ${is12hPattern ? 'p-0 min-h-[60px]' : 'p-1 min-h-[50px]'}`; 
+                } else {
+                    cellClasses += ` ${is12hPattern ? 'p-0 min-h-[80px]' : 'p-2 min-h-[70px]'}`; 
+                }
                 dayCell.className = cellClasses;
 
                 const currentIterationDate = new Date(year, month, day);
@@ -409,7 +414,7 @@
                 }
 
                 const dayNumberSpan = document.createElement('span');
-                dayNumberSpan.className = `font-bold self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs p-1.5' : 'text-sm p-2'}`;
+                dayNumberSpan.className = `font-bold self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs pl-2 pt-1' : 'text-sm px-2 pt-1'}`;
                 dayNumberSpan.textContent = day;
                 
                 const shiftsDisplayContainer = document.createElement('div');
@@ -432,7 +437,7 @@
                     dayCell.appendChild(dayNumberSpan); 
                     
                     const dayShiftDiv = document.createElement('div');
-                    dayShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-sm' : 'text-base'}`;
+                    dayShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-xs' : 'text-sm'}`;
                     if (displayDayShift) {
                         dayShiftDiv.style.backgroundColor = displayDayShift.color;
                         dayShiftDiv.style.color = getContrastColor(displayDayShift.color);
@@ -444,7 +449,7 @@
                     shiftsDisplayContainer.appendChild(dayShiftDiv);
 
                     const nightShiftDiv = document.createElement('div');
-                    nightShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-sm' : 'text-base'}`;
+                    nightShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-xs' : 'text-sm'}`;
                      if (displayNightShift) {
                         nightShiftDiv.style.backgroundColor = displayNightShift.color;
                         nightShiftDiv.style.color = getContrastColor(displayNightShift.color);
@@ -463,7 +468,7 @@
                         const contrastColor = getContrastColor(displayDayShift.color);
                         dayNumberSpan.style.color = contrastColor; 
                         const shiftLabel = document.createElement('span');
-                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-lg' : 'text-xl'}`;
+                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-sm' : 'text-base'}`;
                         shiftLabel.style.color = contrastColor; 
                         shiftLabel.textContent = displayDayShift.label;
                         shiftsDisplayContainer.appendChild(shiftLabel);
@@ -820,7 +825,6 @@
         </div>
         <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
 
-        <!-- Legenda de Eventos e Feriados -->
         <div class="mt-4 flex flex-col justify-start items-start space-y-1 text-xs text-gray-600 dark:text-gray-400">
             <div class="flex items-center space-x-2">
                 <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
@@ -830,10 +834,8 @@
                 <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <span class="font-semibold">Dias com agenda</span>
             </div>
-            <!-- Container para a legenda de feriados dinâmica -->
             <div id="holidayLegendContainer" class="flex flex-col items-start space-y-1">
-                <!-- A legenda de feriados será inserida aqui pelo JavaScript -->
-            </div>
+                </div>
         </div>
 
         <footer class="text-center mt-6">
@@ -846,7 +848,6 @@
         </footer>
     </div>
 
-    <!-- Modal de Configurações da Escala -->
     <div id="settingsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -873,7 +874,6 @@
         </div>
     </div>
 
-    <!-- Modal de Eventos -->
     <div id="eventModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
@@ -897,7 +897,6 @@
         </div>
     </div>
 
-    <!-- Modal de Dicas -->
     <div id="tipsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
