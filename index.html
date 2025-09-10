@@ -35,6 +35,15 @@
         const tipsModal = document.getElementById('tipsModal');
         const openTipsButton = document.getElementById('openTipsButton');
         const closeTipsModalButton = document.getElementById('closeTipsModalButton');
+
+        // Elementos Gemini
+        const summarizeMonthButton = document.getElementById('summarizeMonthButton');
+        const summaryContainer = document.getElementById('summaryContainer');
+        const suggestActivityButton = document.getElementById('suggestActivityButton');
+        const suggestionLoadingText = document.getElementById('suggestionLoadingText');
+        const selectAlaForSummaryModal = document.getElementById('selectAlaForSummaryModal');
+        const summaryAlaButtonsContainer = document.getElementById('summaryAlaButtonsContainer');
+        const closeSummaryAlaModalButton = document.getElementById('closeSummaryAlaModalButton');
         
         let currentDate = new Date();
         let settings = {
@@ -44,7 +53,7 @@
             shifts: [ 
                 { label: 'A', color: '#FF0000' }, 
                 { label: 'B', color: '#00FF00' }, 
-                { label: 'C', color: '#0000FF' }, 
+                { label: 'C', color: '#FFA500' }, 
                 { label: 'D', color: '#FFFF00' }  
             ],
             viewMode: 'desktop',
@@ -204,7 +213,7 @@
             if (settings.scheduleType === 'ABCD_24_72') {
                 defaultShifts = [
                     { label: 'A', color: '#FF0000' }, { label: 'B', color: '#00FF00' },
-                    { label: 'C', color: '#0000FF' }, { label: 'D', color: '#FFFF00' }
+                    { label: 'C', color: '#FFA500' }, { label: 'D', color: '#FFFF00' }
                 ];
             } else if (settings.scheduleType === 'SECOM_UR_12H') {
                 defaultShifts = [
@@ -214,10 +223,6 @@
                     { label: 'H', color: '#795548' }, // Brown
                     { label: 'I', color: '#9e9e9e' }  // Grey
                 ];
-            } else {
-                 for (let i = 0; i < numShiftsRequired; i++) {
-                    defaultShifts.push({ label: String.fromCharCode(65 + i), color: '#CCCCCC' });
-                 }
             }
             settings.shifts = defaultShifts.slice(0, numShiftsRequired);
         }
@@ -275,14 +280,6 @@
                     dayShift: settings.shifts[dayShiftTeamIndex] || null,
                     nightShift: settings.shifts[nightShiftTeamIndex] || null
                 };
-            } else if (patternDetails.isSimple12h) { 
-                const numTeams = patternDetails.shiftsInPattern;
-                const daySlotIndex = diffDays * 2;
-                const nightSlotIndex = diffDays * 2 + 1;
-                return {
-                    dayShift: settings.shifts[daySlotIndex % numTeams] || null,
-                    nightShift: settings.shifts[nightSlotIndex % numTeams] || null
-                };
             } else { 
                 const numDistinctTeams = patternDetails.shiftsInPattern; 
                 const daysWork = patternDetails.daysOn; 
@@ -301,50 +298,74 @@
             }
         }
 
-        function renderShiftFilterButtons() {
-            shiftFilterButtonsContainer.innerHTML = ''; 
-            const patternDetails = schedulePatterns[settings.scheduleType];
-            if (!patternDetails || !settings.shifts || settings.shifts.length === 0) return;
-
-            const baseButtonClasses = 'py-1 px-3 rounded-md shadow text-xs transition-colors mr-2 mb-2 font-medium';
-            
-            const showAllButton = document.createElement('button');
-            showAllButton.textContent = 'Todas as Alas';
-            showAllButton.className = `${baseButtonClasses} ${settings.filteredShiftLabel === null ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`;
-            showAllButton.onclick = () => {
+        // Helper to create the "Todas as Alas" button
+        function createShowAllButton() {
+            const baseButtonClasses = 'py-1.5 px-4 rounded-lg shadow-md text-sm font-semibold border-b-4 active:translate-y-0.5 active:border-b-2 mr-2 mb-2 transition-all duration-150 ease-in-out';
+            const button = document.createElement('button');
+            button.textContent = 'Todas as Alas';
+            let dynamicClasses = settings.filteredShiftLabel === null
+                ? 'bg-blue-600 border-blue-800 text-white'
+                : 'bg-gray-200 border-gray-400 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:border-gray-900 dark:text-gray-200 dark:hover:bg-gray-600';
+            button.className = `${baseButtonClasses} ${dynamicClasses}`;
+            button.onclick = () => {
                 settings.filteredShiftLabel = null;
                 saveSettingsToLocalStorage();
                 applySettingsAndRender();
             };
-            shiftFilterButtonsContainer.appendChild(showAllButton);
+            return button;
+        }
+
+        // Helper to create an individual Ala button
+        function createAlaButton(shift) {
+            const baseButtonClasses = 'py-1.5 px-4 rounded-lg shadow-md text-sm font-semibold border-b-4 active:translate-y-0.5 active:border-b-2 mr-2 mb-2 transition-all duration-150 ease-in-out';
+            const button = document.createElement('button');
+            button.textContent = `Ala ${shift.label}`;
             
+            const borderColor3D = darkenColor(shift.color, 20);
+
+            if (settings.filteredShiftLabel === shift.label) {
+                const contrast = getContrastColor(shift.color);
+                button.className = `${baseButtonClasses}`;
+                button.style.backgroundColor = shift.color;
+                button.style.color = contrast;
+                button.style.borderColor = borderColor3D;
+            } else {
+                button.className = `${baseButtonClasses} bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700`;
+                button.style.color = shift.color;
+                button.style.borderColor = borderColor3D;
+            }
+
+            button.onclick = () => {
+                settings.filteredShiftLabel = shift.label;
+                saveSettingsToLocalStorage();
+                applySettingsAndRender();
+            };
+            return button;
+        }
+
+        function renderShiftFilterButtons() {
+            shiftFilterButtonsContainer.innerHTML = '';
+            shiftFilterButtonsContainer.className = 'my-4 flex flex-wrap justify-center'; // Default class
+
+            const patternDetails = schedulePatterns[settings.scheduleType];
+            if (!patternDetails || !settings.shifts || !settings.shifts.length) return;
+
+            shiftFilterButtonsContainer.appendChild(createShowAllButton());
+
             const sortedShifts = [...settings.shifts].sort((a, b) => a.label.localeCompare(b.label));
 
-            sortedShifts.forEach(shift => {
-                const button = document.createElement('button');
-                button.textContent = `Ala ${shift.label}`;
-                button.style.backgroundColor = settings.filteredShiftLabel === shift.label ? shift.color : '';
-                button.style.color = settings.filteredShiftLabel === shift.label ? getContrastColor(shift.color) : '';
-                
-                let dynamicClasses = settings.filteredShiftLabel === shift.label 
-                    ? `border-2 border-black dark:border-white` 
-                    : `bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600`;
-                if(settings.filteredShiftLabel !== shift.label){ 
-                    button.style.borderColor = shift.color;
-                    button.style.borderWidth = '2px';
-                    button.style.color = shift.color; 
-                    dynamicClasses = `bg-transparent hover:bg-opacity-20 hover:bg-[${shift.color}]`;
-                }
+            sortedShifts.forEach((shift, index) => {
+                shiftFilterButtonsContainer.appendChild(createAlaButton(shift));
 
-                button.className = `${baseButtonClasses} ${dynamicClasses}`;
-                button.onclick = () => {
-                    settings.filteredShiftLabel = shift.label;
-                    saveSettingsToLocalStorage();
-                    applySettingsAndRender();
-                };
-                shiftFilterButtonsContainer.appendChild(button);
+                // Força a quebra de linha após o segundo botão (Ala B) na escala 24/72 no modo celular
+                if (settings.scheduleType === 'ABCD_24_72' && index === 1 && settings.viewMode === 'mobile') {
+                    const lineBreak = document.createElement('div');
+                    lineBreak.className = 'w-full basis-full h-0'; // 'basis-full' forces a wrap in flexbox
+                    shiftFilterButtonsContainer.appendChild(lineBreak);
+                }
             });
         }
+
 
         function renderCalendar() {  
             if (settings.viewMode === 'mobile') {
@@ -410,7 +431,7 @@
                 currentIterationDate.setHours(0, 0, 0, 0);
                 
                 if (currentIterationDate.getTime() === today.getTime()) {
-                    dayCell.classList.add('animate-pulse', 'border-blue-500', 'dark:border-blue-400', 'border-2');
+                    dayCell.classList.add('animate-pulse', 'border-blue-700', 'dark:border-blue-500', 'border-b-4', 'shadow-lg', 'z-10');
                 }
 
                 const dayNumberSpan = document.createElement('span');
@@ -559,6 +580,8 @@
             const recurringText = recurringEvents[recurringDateKey] || '';
             const eventText = events[dateKey] || '';
             eventDescriptionInput.value = [recurringText, eventText].filter(Boolean).join('\n');
+            suggestionLoadingText.classList.add('hidden');
+            eventDescriptionInput.classList.remove('hidden');
 
             eventModal.classList.remove('hidden');
         }
@@ -631,6 +654,22 @@
                 return '#000000'; 
             }
         }
+
+        function darkenColor(hexColor, percent) {
+            if (!hexColor || hexColor.length < 7) return '#555555';
+            try {
+                const num = parseInt(hexColor.slice(1), 16),
+                    amt = Math.round(2.55 * percent),
+                    R = (num >> 16) - amt,
+                    G = ((num >> 8) & 0x00FF) - amt,
+                    B = (num & 0x0000FF) - amt;
+                return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+            } catch (e) {
+                console.error("Erro ao escurecer a cor:", hexColor, e);
+                return '#555555'; // fallback
+            }
+        }
+
         function updateSettingsUIInputs() {  
             scheduleTypeSelect.value = settings.scheduleType;
             shiftContainer.innerHTML = ''; 
@@ -644,7 +683,7 @@
             if (settings.scheduleType === 'ABCD_24_72') {
                 currentDefaultShifts = [
                     { label: 'A', color: '#FF0000' }, { label: 'B', color: '#00FF00' },
-                    { label: 'C', color: '#0000FF' }, { label: 'D', color: '#FFFF00' }
+                    { label: 'C', color: '#FFA500' }, { label: 'D', color: '#FFFF00' }
                 ];
             } else if (settings.scheduleType === 'SECOM_UR_12H') {
                 currentDefaultShifts = [
@@ -652,10 +691,6 @@
                     { label: 'G', color: '#00bcd4' }, { label: 'H', color: '#795548' },
                     { label: 'I', color: '#9e9e9e' }
                 ];
-            } else { 
-                for (let i = 0; i < numShiftsToDisplay; i++) {
-                    currentDefaultShifts.push({ label: String.fromCharCode(65 + i), color: '#CCCCCC' });
-                }
             }
 
             const finalShifts = [];
@@ -711,10 +746,14 @@
 
         prevMonthButton.addEventListener('click', () => {  
             currentDate.setMonth(currentDate.getMonth() - 1);
+            summaryContainer.classList.add('hidden');
+            summaryContainer.innerHTML = '';
             renderCalendar(); 
         });
         nextMonthButton.addEventListener('click', () => {  
             currentDate.setMonth(currentDate.getMonth() + 1);
+            summaryContainer.classList.add('hidden');
+            summaryContainer.innerHTML = '';
             renderCalendar(); 
         });
         openSettingsButton.addEventListener('click', () => {  
@@ -778,6 +817,178 @@
             }, 3000);
         }
 
+        // --- Lógica da API Gemini ---
+
+        // IMPORTANTE: Para que as funcionalidades da IA funcionem, você PRECISA de uma chave de API do Google AI Studio.
+        // 1. Vá para https://aistudio.google.com/
+        // 2. Clique em "Get API key" e copie sua chave.
+        // 3. Cole a chave real abaixo.
+        const geminiApiKey = "AIzaSyB8_IIdJROsqJ4VE8jhJWVlIyBuDUjOXbI"; 
+
+        async function callGemini(prompt) {
+            if (!geminiApiKey || geminiApiKey === "COLE_SUA_CHAVE_REAL_AQUI") {
+                const errorMessage = "Chave de API do Gemini não configurada.";
+                console.error(errorMessage);
+                showToast(errorMessage, "error");
+                return null;
+            }
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`;
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("Erro da API Gemini:", errorData);
+                    throw new Error(`Erro da API: ${errorData.error?.message || response.statusText}`);
+                }
+                const result = await response.json();
+                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    console.error("Resposta inesperada da API Gemini:", result);
+                    throw new Error("Não foi possível obter uma resposta da IA.");
+                }
+            } catch (error) {
+                console.error("Erro ao chamar a API Gemini:", error);
+                showToast(`Erro na IA: ${error.message}. Verifique a chave de API e o console.`, "error");
+                return null;
+            }
+        }
+
+        summarizeMonthButton.addEventListener('click', async () => {
+            summaryAlaButtonsContainer.innerHTML = '';
+            const sortedShifts = [...settings.shifts].sort((a, b) => a.label.localeCompare(b.label));
+
+            sortedShifts.forEach(shift => {
+                const button = document.createElement('button');
+                button.textContent = `Ala ${shift.label}`;
+                button.className = 'py-2 px-4 rounded-lg shadow text-sm font-semibold transition-colors';
+                button.style.backgroundColor = shift.color;
+                button.style.color = getContrastColor(shift.color);
+                button.onclick = () => generateSummaryForAla(shift.label);
+                summaryAlaButtonsContainer.appendChild(button);
+            });
+            selectAlaForSummaryModal.classList.remove('hidden');
+        });
+
+        closeSummaryAlaModalButton.addEventListener('click', () => selectAlaForSummaryModal.classList.add('hidden'));
+
+        async function generateSummaryForAla(selectedAlaLabel) {
+            selectAlaForSummaryModal.classList.add('hidden');
+            summaryContainer.classList.remove('hidden');
+            summaryContainer.innerHTML = '<p class="text-center text-gray-500 dark:text-gray-400 animate-pulse">Analisando o mês para a sua ala... ✨</p>';
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const monthName = currentDate.toLocaleString('pt-BR', { month: 'long' });
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            let myWorkDays = [];
+            let myDaysOff = [];
+            let holidaysOnWorkDays = [];
+            let holidaysOnDaysOff = [];
+            let eventsInMonth = [];
+            let anniversariesInMonth = [];
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const shifts = getShiftsForCalendarDay(date);
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const holidayName = holidays[year] ? holidays[year][dateKey] : null;
+
+                let isMyWorkDay = (shifts.dayShift && shifts.dayShift.label === selectedAlaLabel) || (shifts.nightShift && shifts.nightShift.label === selectedAlaLabel);
+
+                if (isMyWorkDay) {
+                    myWorkDays.push(day);
+                    if (holidayName) {
+                        holidaysOnWorkDays.push(`${day} - ${holidayName}`);
+                    }
+                } else {
+                    myDaysOff.push(day);
+                    if (holidayName) {
+                        holidaysOnDaysOff.push(`${day} - ${holidayName}`);
+                    }
+                }
+
+                if (events[dateKey]) {
+                    eventsInMonth.push(`${day}: ${events[dateKey]}`);
+                }
+                const recurringDateKey = `${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                if(recurringEvents[recurringDateKey]) {
+                    anniversariesInMonth.push(`${day}: ${recurringEvents[recurringDateKey]}`);
+                }
+            }
+
+            const prompt = `
+                Aja como um assistente pessoal para um bombeiro da Ala ${selectedAlaLabel}. Resuma de forma amigável e concisa o mês de ${monthName} de ${year}, com foco na minha rotina.
+                Use os seguintes dados:
+                - Minha escala de serviço é: ${schedulePatterns[settings.scheduleType].name}.
+                - Meus dias de SERVIÇO são: ${myWorkDays.length > 0 ? myWorkDays.join(', ') : 'nenhum'}.
+                - Meus dias de FOLGA são: ${myDaysOff.length > 0 ? myDaysOff.join(', ') : 'nenhum'}.
+                - Feriados que caem em dias de SERVIÇO: ${holidaysOnWorkDays.length > 0 ? holidaysOnWorkDays.join('; ') : 'nenhum'}.
+                - Feriados que poderei aproveitar na FOLGA: ${holidaysOnDaysOff.length > 0 ? holidaysOnDaysOff.join('; ') : 'nenhum'}.
+                - Meus eventos pessoais agendados: ${eventsInMonth.length > 0 ? eventsInMonth.join('; ') : 'nenhum'}.
+                - Aniversários para lembrar: ${anniversariesInMonth.length > 0 ? anniversariesInMonth.join('; ') : 'nenhum'}.
+
+                Crie um parágrafo de resumo, começando com "Olá, Ala ${selectedAlaLabel}!", e destaque os pontos mais importantes para o meu planejamento.
+            `;
+
+            const summaryText = await callGemini(prompt);
+            if(summaryText) {
+                 summaryContainer.innerHTML = `<p class="text-sm">${summaryText.replace(/\n/g, '<br>')}</p>`;
+            } else {
+                 summaryContainer.innerHTML = '<p class="text-center text-red-500">Não foi possível gerar o resumo.</p>';
+            }
+        }
+
+
+        suggestActivityButton.addEventListener('click', async () => {
+             if (!currentlyEditingEventDate) return;
+
+             suggestionLoadingText.classList.remove('hidden');
+             eventDescriptionInput.classList.add('hidden');
+             suggestActivityButton.disabled = true;
+
+             const date = currentlyEditingEventDate;
+             const formattedDate = date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+             const shifts = getShiftsForCalendarDay(date);
+             
+             let isWorkDay = false;
+             if(settings.filteredShiftLabel) {
+                if((shifts.dayShift && shifts.dayShift.label === settings.filteredShiftLabel) || (shifts.nightShift && shifts.nightShift.label === settings.filteredShiftLabel)) {
+                    isWorkDay = true;
+                }
+             } else if (shifts.dayShift || shifts.nightShift) {
+                isWorkDay = true;
+             }
+
+             const context = isWorkDay 
+                ? "Estou de serviço neste dia. Sugira uma dica rápida de bem-estar, um lanche nutritivo ou uma atividade curta para fazer durante um intervalo."
+                : "Estou de folga neste dia. Sugira uma atividade de lazer, que pode ser para relaxar, para fazer com a família, ou um hobby.";
+
+             const prompt = `
+                Sou um bombeiro. Para o dia ${formattedDate}, ${context}
+                Forneça uma sugestão curta e direta.
+             `;
+
+             const suggestion = await callGemini(prompt);
+
+             if (suggestion) {
+                const currentText = eventDescriptionInput.value;
+                eventDescriptionInput.value = currentText ? `${currentText}\n${suggestion}` : suggestion;
+             }
+             
+             suggestionLoadingText.classList.add('hidden');
+             eventDescriptionInput.classList.remove('hidden');
+             suggestActivityButton.disabled = false;
+        });
+
+
         // Inicialização
         populateScheduleTypes();
         loadSettingsFromLocalStorage(); 
@@ -789,14 +1000,6 @@
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
         .modal.hidden { opacity: 0; visibility: hidden; }
-        .btn-3d {
-            border-bottom-width: 4px;
-            transition: transform 0.1s ease-in-out, border-color 0.1s ease-in-out;
-        }
-        .btn-3d:active {
-            transform: translateY(2px);
-            border-bottom-width: 2px;
-        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 min-h-screen flex flex-col items-center">
@@ -805,18 +1008,16 @@
         <div class="text-center mb-4">
             <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário de Escalas</h1>
         </div>
-        <div class="flex justify-between items-center mb-2">
-            <button id="toggleViewButton" class="btn-3d bg-purple-500 border-purple-700 hover:bg-purple-600 text-white font-semibold py-2 px-3 rounded-lg text-sm">
+        <div class="flex justify-center items-center mb-4 space-x-3">
+            <button id="toggleViewButton" class="font-semibold py-2 px-4 rounded-lg text-white shadow-md border-b-4 transition-all duration-150 ease-in-out active:translate-y-0.5 active:border-b-2 bg-purple-500 border-purple-700 hover:bg-purple-600 text-sm">
                 Alternar Visualização
             </button>
-            <div class="flex items-center space-x-2">
-                <button id="openTipsButton" class="btn-3d bg-green-500 border-green-700 hover:bg-green-600 text-white font-semibold py-2 px-3 rounded-lg text-sm">
-                    Dicas
-                </button>
-                <button id="openSettingsButton" class="btn-3d bg-blue-500 border-blue-700 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg text-sm">
-                    Configurações
-                </button>
-            </div>
+            <button id="openTipsButton" class="font-semibold py-2 px-4 rounded-lg text-white shadow-md border-b-4 transition-all duration-150 ease-in-out active:translate-y-0.5 active:border-b-2 bg-green-500 border-green-700 hover:bg-green-600 text-sm">
+                Dicas
+            </button>
+            <button id="openSettingsButton" class="font-semibold py-2 px-4 rounded-lg text-white shadow-md border-b-4 transition-all duration-150 ease-in-out active:translate-y-0.5 active:border-b-2 bg-blue-500 border-blue-700 hover:bg-blue-600 text-sm">
+                Configurações
+            </button>
         </div>
 
         <div id="shiftFilterButtonsContainer" class="my-4 flex flex-wrap justify-center">
@@ -826,11 +1027,17 @@
             <button id="prevMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
             </button>
-            <h2 id="currentMonthYear" class="text-xl font-semibold"></h2>
+            <div class="flex items-center space-x-2">
+                <h2 id="currentMonthYear" class="text-xl font-semibold"></h2>
+                <button id="summarizeMonthButton" title="Resumir Mês com IA" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles"><path d="m12 3-1.9 3.9-3.9 1.9 3.9 1.9 1.9 3.9 1.9-3.9 3.9-1.9-3.9-1.9Z"/><path d="M5 12H3"/><path d="M5 22v-2"/><path d="m21 12-2 0"/><path d="m21 22-2-2"/><path d="m12 5 1.5-3"/><path d="M3 5l2 2"/><path d="m19 5-2 2"/></svg>
+                </button>
+            </div>
             <button id="nextMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
             </button>
         </div>
+        <div id="summaryContainer" class="hidden my-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg shadow"></div>
         <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
 
         <!-- Legenda de Eventos e Feriados -->
@@ -855,7 +1062,7 @@
                 <span>|</span>
                 <a href="mailto:kgfontinelle@gmail.com" class="hover:text-blue-500">kgfontinelle@gmail.com</a>
             </div>
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.04</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.05</p>
         </footer>
     </div>
 
@@ -898,14 +1105,20 @@
             <div>
                 <label for="eventDescriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição(ões) do Evento (use "niver" para aniversários; uma por linha):</label>
                 <textarea id="eventDescriptionInput" placeholder="Ex: GSV&#10;Niver do João&#10;Consulta médica" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="3"></textarea>
+                <p id="suggestionLoadingText" class="hidden text-center text-gray-500 dark:text-gray-400 animate-pulse">Buscando sugestão... ✨</p>
             </div>
-            <div class="mt-6 flex justify-between">
-                <button id="deleteEventButton" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors">
-                    Deletar
+             <div class="mt-4 flex justify-between items-center">
+                <button id="suggestActivityButton" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-3 rounded-lg shadow text-xs transition-colors">
+                    ✨ Sugerir Atividade
                 </button>
-                <button id="saveEventButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors">
-                    Salvar
-                </button>
+                <div class="flex space-x-2">
+                     <button id="deleteEventButton" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors">
+                        Deletar
+                    </button>
+                    <button id="saveEventButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors">
+                        Salvar
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -925,6 +1138,22 @@
                 <li>Caso queira modificar as cores ou as legendas das alas, fique à vontade na tela de configurações.</li>
                 <li>Clique em qualquer dia para adicionar um evento pessoal.</li>
             </ul>
+        </div>
+    </div>
+
+    <!-- Modal de Seleção de Ala para Resumo -->
+    <div id="selectAlaForSummaryModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Resumo do Mês</h3>
+                <button id="closeSummaryAlaModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <p class="text-gray-700 dark:text-gray-300 mb-4">Por favor, selecione a sua ala para gerar um resumo personalizado:</p>
+            <div id="summaryAlaButtonsContainer" class="flex flex-wrap justify-center gap-3">
+                <!-- Botões das alas serão inseridos aqui -->
+            </div>
         </div>
     </div>
 
