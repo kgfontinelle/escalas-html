@@ -135,7 +135,7 @@
         }
 
         function updateToggleButtonText() {
-            toggleViewButton.textContent = settings.viewMode === 'desktop' ? 'Visualização Celular' : 'Visualização PC';
+            toggleViewButton.textContent = settings.viewMode === 'desktop' ? 'Celular' : 'PC';
         }
 
         function applySettingsAndRender() { 
@@ -317,7 +317,7 @@
         function createShowAllButton() {
             const button = document.createElement('button');
             button.textContent = 'Todas as Alas';
-            button.className = `btn-glossy mr-2 mb-2 text-sm ${settings.filteredShiftLabel === null ? 'blue' : 'grey'}`;
+            button.className = `btn-glossy text-sm ${settings.filteredShiftLabel === null ? 'blue' : 'grey'}`;
             button.onclick = () => {
                 settings.filteredShiftLabel = null;
                 saveSettingsToLocalStorage();
@@ -330,7 +330,7 @@
         function createAlaButton(shift) {
             const button = document.createElement('button');
             button.textContent = `Ala ${shift.label}`;
-            button.className = 'btn-glossy mr-2 mb-2 text-sm';
+            button.className = 'btn-glossy text-sm';
             
             if (settings.filteredShiftLabel === shift.label) {
                 button.style.background = `linear-gradient(to bottom, ${lightenColor(shift.color, 30)}, ${shift.color})`;
@@ -349,23 +349,28 @@
 
         function renderShiftFilterButtons() {
             shiftFilterButtonsContainer.innerHTML = '';
-            shiftFilterButtonsContainer.className = 'my-4 flex flex-wrap justify-center';
-
+            
             const patternDetails = schedulePatterns[settings.scheduleType];
             if (!patternDetails || !settings.shifts || !settings.shifts.length) return;
 
-            shiftFilterButtonsContainer.appendChild(createShowAllButton());
+            const isMobileAbcd = settings.scheduleType === 'ABCD_24_72' && settings.viewMode === 'mobile';
+
+            if (isMobileAbcd) {
+                shiftFilterButtonsContainer.className = 'my-4 grid grid-cols-2 gap-3';
+            } else {
+                shiftFilterButtonsContainer.className = 'my-4 flex flex-wrap justify-center gap-3';
+            }
+
+            const showAllButton = createShowAllButton();
+            if (isMobileAbcd) {
+                showAllButton.classList.add('col-span-2');
+            }
+            shiftFilterButtonsContainer.appendChild(showAllButton);
 
             const sortedShifts = [...settings.shifts].sort((a, b) => a.label.localeCompare(b.label));
 
-            sortedShifts.forEach((shift, index) => {
+            sortedShifts.forEach((shift) => {
                 shiftFilterButtonsContainer.appendChild(createAlaButton(shift));
-
-                if (settings.scheduleType === 'ABCD_24_72' && index === 1 && settings.viewMode === 'mobile') {
-                    const lineBreak = document.createElement('div');
-                    lineBreak.className = 'w-full basis-full h-0';
-                    shiftFilterButtonsContainer.appendChild(lineBreak);
-                }
             });
         }
 
@@ -1058,13 +1063,13 @@
         </div>
         <div class="flex justify-center items-center mb-4 space-x-3">
             <button id="toggleViewButton" class="btn-glossy purple text-sm">
-                Alternar Visualização
+                PC
             </button>
             <button id="openTipsButton" class="btn-glossy green text-sm">
                 Dicas
             </button>
             <button id="openSettingsButton" class="btn-glossy blue text-sm">
-                Configurações
+                Config
             </button>
         </div>
 
