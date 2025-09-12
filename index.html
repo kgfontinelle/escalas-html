@@ -316,13 +316,9 @@
 
         // Helper to create the "Todas as Alas" button
         function createShowAllButton() {
-            const baseButtonClasses = 'py-1.5 px-4 rounded-lg shadow-md text-sm font-semibold border-b-4 active:translate-y-0.5 active:border-b-2 mr-2 mb-2 transition-all duration-150 ease-in-out';
             const button = document.createElement('button');
             button.textContent = 'Todas as Alas';
-            let dynamicClasses = settings.filteredShiftLabel === null
-                ? 'bg-blue-600 border-blue-800 text-white'
-                : 'bg-gray-200 border-gray-400 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:border-gray-900 dark:text-gray-200 dark:hover:bg-gray-600';
-            button.className = `${baseButtonClasses} ${dynamicClasses}`;
+            button.className = `btn-glossy text-sm ${settings.filteredShiftLabel === null ? 'blue' : 'grey'}`;
             button.onclick = () => {
                 settings.filteredShiftLabel = null;
                 saveSettingsToLocalStorage();
@@ -333,21 +329,15 @@
 
         // Helper to create an individual Ala button
         function createAlaButton(shift) {
-            const baseButtonClasses = 'py-1.5 px-4 rounded-lg shadow-md text-sm font-semibold border-b-4 active:translate-y-0.5 active:border-b-2 mr-2 mb-2 transition-all duration-150 ease-in-out';
             const button = document.createElement('button');
             button.textContent = `Ala ${shift.label}`;
+            button.className = 'btn-glossy text-sm';
             
-            const borderColor3D = darkenColor(shift.color, 20);
-
             if (settings.filteredShiftLabel === shift.label) {
-                const contrast = getContrastColor(shift.color);
-                button.className = `${baseButtonClasses}`;
-                button.style.backgroundColor = shift.color;
-                button.style.color = contrast;
-                button.style.borderColor = borderColor3D;
+                button.style.background = `linear-gradient(to bottom, ${lightenColor(shift.color, 30)}, ${shift.color})`;
+                button.style.color = getContrastColor(shift.color);
             } else {
-                button.className = `${baseButtonClasses} bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-black dark:text-gray-200`;
-                button.style.borderColor = borderColor3D;
+                 button.classList.add('grey');
             }
 
             button.onclick = () => {
@@ -389,12 +379,12 @@
         function renderCalendar() {  
             if (settings.viewMode === 'mobile') {
                 mainCalendarContainer.classList.remove('max-w-3xl');
-                mainCalendarContainer.classList.add('max-w-md');
-                bodyElement.classList.add('p-4'); 
+                mainCalendarContainer.classList.add('w-full'); 
+                bodyElement.classList.remove('p-4'); 
                 currentMonthYear.classList.remove('text-xl');
                 currentMonthYear.classList.add('text-lg');
             } else { 
-                mainCalendarContainer.classList.remove('max-w-md');
+                mainCalendarContainer.classList.remove('w-full');
                 mainCalendarContainer.classList.add('max-w-3xl');
                 bodyElement.classList.add('p-4');
                 currentMonthYear.classList.remove('text-lg');
