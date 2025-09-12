@@ -379,12 +379,12 @@
         function renderCalendar() {  
             if (settings.viewMode === 'mobile') {
                 mainCalendarContainer.classList.remove('max-w-3xl');
-                mainCalendarContainer.classList.add('w-full'); 
-                bodyElement.classList.remove('p-4'); 
+                mainCalendarContainer.classList.add('max-w-md');
+                bodyElement.classList.add('p-4'); 
                 currentMonthYear.classList.remove('text-xl');
                 currentMonthYear.classList.add('text-lg');
             } else { 
-                mainCalendarContainer.classList.remove('w-full');
+                mainCalendarContainer.classList.remove('max-w-md');
                 mainCalendarContainer.classList.add('max-w-3xl');
                 bodyElement.classList.add('p-4');
                 currentMonthYear.classList.remove('text-lg');
@@ -1065,11 +1065,11 @@
             <button id="toggleViewButton" class="btn-glossy purple text-sm">
                 PC
             </button>
-            <button id="openTipsButton" class="btn-glossy green text-sm">
-                Dicas
-            </button>
             <button id="openSettingsButton" class="btn-glossy blue text-sm">
                 Config
+            </button>
+            <button id="openTipsButton" class="btn-glossy green text-sm">
+                Dicas
             </button>
         </div>
 
