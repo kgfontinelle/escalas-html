@@ -22,6 +22,7 @@
         const mainCalendarContainer = document.getElementById('mainCalendarContainer'); 
         const shiftFilterButtonsContainer = document.getElementById('shiftFilterButtonsContainer'); 
         const holidayLegendContainer = document.getElementById('holidayLegendContainer'); 
+        const bodyElement = document.body;
 
         // Elementos para Eventos
         const eventModal = document.getElementById('eventModal');
@@ -378,17 +379,20 @@
         function renderCalendar() {  
             if (settings.viewMode === 'mobile') {
                 mainCalendarContainer.classList.remove('max-w-3xl');
-                mainCalendarContainer.classList.add('max-w-md'); 
+                mainCalendarContainer.classList.add('w-full'); 
+                bodyElement.classList.remove('p-4'); 
                 currentMonthYear.classList.remove('text-xl');
                 currentMonthYear.classList.add('text-lg');
             } else { 
-                mainCalendarContainer.classList.remove('max-w-md');
+                mainCalendarContainer.classList.remove('w-full');
                 mainCalendarContainer.classList.add('max-w-3xl');
+                bodyElement.classList.add('p-4');
                 currentMonthYear.classList.remove('text-lg');
                 currentMonthYear.classList.add('text-xl');
             }
 
             calendarGrid.innerHTML = ''; 
+            calendarGrid.className = 'grid grid-cols-7 gap-1';
             currentMonthYear.textContent = `${currentDate.toLocaleString('pt-BR', { month: 'long' })} ${currentDate.getFullYear()}`;
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
@@ -427,12 +431,8 @@
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayCell = document.createElement('div');
-                let cellClasses = 'border-2 shadow-sm rounded-tr-2xl rounded-bl-2xl text-center flex flex-col justify-start items-center cursor-pointer overflow-hidden relative';
-                if (settings.viewMode === 'mobile') {
-                    cellClasses += ` ${is12hPattern ? 'p-0 min-h-[60px]' : 'p-1 min-h-[50px]'}`; 
-                } else {
-                    cellClasses += ` ${is12hPattern ? 'p-0 min-h-[80px]' : 'p-2 min-h-[70px]'}`; 
-                }
+                let cellClasses = 'border-2 shadow-sm rounded-tr-2xl rounded-bl-2xl text-center flex flex-col justify-start items-center cursor-pointer overflow-hidden relative aspect-square';
+
                 dayCell.className = cellClasses;
 
                 const currentIterationDate = new Date(year, month, day);
@@ -443,7 +443,7 @@
                 }
 
                 const dayNumberSpan = document.createElement('span');
-                dayNumberSpan.className = `font-bold self-start z-10 ${settings.viewMode === 'mobile' ? 'text-xs p-1.5' : 'text-sm p-2'}`;
+                dayNumberSpan.className = 'font-bold self-start z-10 text-xs sm:text-sm p-1';
                 dayNumberSpan.textContent = day;
                 
                 const shiftsDisplayContainer = document.createElement('div');
@@ -466,7 +466,7 @@
                     dayCell.appendChild(dayNumberSpan); 
                     
                     const dayShiftDiv = document.createElement('div');
-                    dayShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-sm' : 'text-base'}`;
+                    dayShiftDiv.className = 'w-full text-center flex-1 flex items-center justify-center font-bold text-xs sm:text-base';
                     if (displayDayShift) {
                         const startColor = lightenColor(displayDayShift.color, 25);
                         dayShiftDiv.style.background = `linear-gradient(to bottom, ${startColor}, ${displayDayShift.color})`;
@@ -479,7 +479,7 @@
                     shiftsDisplayContainer.appendChild(dayShiftDiv);
 
                     const nightShiftDiv = document.createElement('div');
-                    nightShiftDiv.className = `w-full text-center flex-1 flex items-center justify-center font-bold ${settings.viewMode === 'mobile' ? 'text-sm' : 'text-base'}`;
+                    nightShiftDiv.className = 'w-full text-center flex-1 flex items-center justify-center font-bold text-xs sm:text-base';
                      if (displayNightShift) {
                         const startColor = lightenColor(displayNightShift.color, 25);
                         nightShiftDiv.style.background = `linear-gradient(to bottom, ${startColor}, ${displayNightShift.color})`;
@@ -500,12 +500,12 @@
                         const contrastColor = getContrastColor(displayDayShift.color);
                         dayNumberSpan.style.color = contrastColor; 
                         const shiftLabel = document.createElement('span');
-                        shiftLabel.className = `font-bold flex-grow flex items-center justify-center ${settings.viewMode === 'mobile' ? 'text-lg' : 'text-xl'}`;
+                        shiftLabel.className = 'font-bold flex-grow flex items-center justify-center text-base sm:text-xl';
                         shiftLabel.style.color = contrastColor; 
                         shiftLabel.textContent = displayDayShift.label;
                         shiftsDisplayContainer.appendChild(shiftLabel);
                     } else {
-                        dayNumberSpan.classList.add(settings.viewMode === 'mobile' ? 'text-gray-700' : 'text-gray-800', 'dark:text-gray-200');
+                        dayNumberSpan.classList.add('text-gray-800', 'dark:text-gray-200');
                         if (settings.filteredShiftLabel) dayCell.classList.add('bg-gray-50', 'dark:bg-gray-800'); 
                     }
                     dayCell.appendChild(shiftsDisplayContainer);
