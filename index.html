@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calendário</title> <script src="https://cdn.tailwindcss.com"></script>
+    <title>Calendário</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="module">
         // Elementos da UI
@@ -311,12 +312,12 @@
             }
         }
 
-
-        // Helper to create the "Todas as Alas" button
+        // --- FUNÇÕES DE BOTÕES DE FILTRO (ALTERADAS) ---
         function createShowAllButton() {
             const button = document.createElement('button');
             button.textContent = 'Todas as Alas';
-            button.className = `btn-glossy text-sm ${settings.filteredShiftLabel === null ? 'blue' : 'grey'}`;
+            const sizeClasses = settings.viewMode === 'mobile' ? 'text-xs py-1 px-3' : 'text-sm';
+            button.className = `btn-glossy ${sizeClasses} ${settings.filteredShiftLabel === null ? 'blue' : 'grey'}`;
             button.onclick = () => {
                 settings.filteredShiftLabel = null;
                 saveSettingsToLocalStorage();
@@ -325,11 +326,11 @@
             return button;
         }
 
-        // Helper to create an individual Ala button
         function createAlaButton(shift) {
             const button = document.createElement('button');
             button.textContent = `Ala ${shift.label}`;
-            button.className = 'btn-glossy text-sm';
+            const sizeClasses = settings.viewMode === 'mobile' ? 'text-xs py-1 px-3' : 'text-sm';
+            button.className = `btn-glossy ${sizeClasses}`;
             
             if (settings.filteredShiftLabel === shift.label) {
                 button.style.background = `linear-gradient(to bottom, ${lightenColor(shift.color, 30)}, ${shift.color})`;
@@ -352,18 +353,10 @@
             const patternDetails = schedulePatterns[settings.scheduleType];
             if (!patternDetails || !settings.shifts || !settings.shifts.length) return;
 
-            const isMobileAbcd = settings.scheduleType === 'ABCD_24_72' && settings.viewMode === 'mobile';
-
-            if (isMobileAbcd) {
-                shiftFilterButtonsContainer.className = 'my-4 grid grid-cols-2 gap-3';
-            } else {
-                shiftFilterButtonsContainer.className = 'my-4 flex flex-wrap justify-center gap-3';
-            }
+            // Layout de linha única para PC e Celular
+            shiftFilterButtonsContainer.className = 'my-4 flex flex-wrap justify-center gap-2';
 
             const showAllButton = createShowAllButton();
-            if (isMobileAbcd) {
-                showAllButton.classList.add('col-span-2');
-            }
             shiftFilterButtonsContainer.appendChild(showAllButton);
 
             const sortedShifts = [...settings.shifts].sort((a, b) => a.label.localeCompare(b.label));
@@ -1029,7 +1022,6 @@
             messageElement.textContent = `Parabéns, ${name}!`;
             overlay.classList.remove('hidden');
 
-            // Toca o som da festa
             const birthdaySound = new Audio('festa.mp3');
             birthdaySound.play().catch(e => {
                 console.error("Erro ao tocar o som:", e);
@@ -1164,7 +1156,8 @@
 
     <div id="mainCalendarContainer" class="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6">
         <div class="text-center mb-4">
-            <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário</h1> </div>
+            <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário</h1>
+        </div>
         <div class="flex justify-center items-center mb-4 space-x-3">
             <button id="toggleViewButton" class="btn-glossy purple text-sm">
                 PC
