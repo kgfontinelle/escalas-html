@@ -6,6 +6,259 @@
     <title>Calendário</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style> 
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
+        .modal.hidden { opacity: 0; visibility: hidden; }
+        .btn-glossy {
+            position: relative;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 -1px 1px rgba(0,0,0,0.3);
+            border: 1px solid rgba(0,0,0,0.4);
+            box-shadow:
+                inset 0 1px 1px rgba(255,255,255,0.4),
+                0 4px 6px -1px rgba(0,0,0,0.3), 
+                0 2px 4px -2px rgba(0,0,0,0.3);
+            transition: all 0.15s ease-out;
+            transform: translateZ(0); /* For GPU acceleration */
+            overflow: hidden;
+        }
+        .btn-glossy::before {
+            content: '';
+            position: absolute;
+            top: 1px;
+            left: 5%;
+            width: 90%;
+            height: 50%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.6), rgba(255,255,255,0.1));
+            border-radius: 9999px;
+            opacity: 0.8;
+        }
+        .btn-glossy:active {
+            transform: translateY(2px);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+        }
+        .btn-glossy.purple { background: linear-gradient(to bottom, #a855f7, #7e22ce); }
+        .btn-glossy.green { background: linear-gradient(to bottom, #22c55e, #15803d); }
+        .btn-glossy.blue { background: linear-gradient(to bottom, #3b82f6, #1d4ed8); }
+        .btn-glossy.red { background: linear-gradient(to bottom, #ef4444, #b91c1c); }
+        .btn-glossy.teal { background: linear-gradient(to bottom, #14b8a6, #0f766e); }
+        .btn-glossy.grey { 
+            background: linear-gradient(to bottom, #f5f5f5, #e0e0e0);
+            color: #333;
+            text-shadow: 0 1px 1px rgba(255,255,255,0.7);
+        }
+
+        /* --- ESTILOS PARA ANIMAÇÃO DE ANIVERSÁRIO --- */
+        #birthdayOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1001; /* Z-index alto para ficar sobre tudo */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        #confettiContainer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+        #birthdayMessage {
+            color: white;
+            font-size: 3.5em; /* Aumentado para mais impacto */
+            font-weight: bold;
+            text-shadow: 3px 3px 8px black;
+            z-index: 1002;
+            animation: pop-in 0.5s ease-out;
+            text-align: center;
+        }
+
+        @keyframes pop-in {
+            from { transform: scale(0.5) rotate(-15deg); opacity: 0; }
+            to { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            border-radius: 2px;
+            opacity: 0.9;
+            animation: fall 4s linear forwards;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(110vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 min-h-screen flex flex-col items-center">
+
+    <div id="mainCalendarContainer" class="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6">
+        <div class="text-center mb-4">
+            <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário</h1>
+        </div>
+        <div class="flex justify-center items-center mb-4 space-x-3">
+            <button id="toggleViewButton" class="btn-glossy purple text-sm">
+                PC
+            </button>
+            <button id="openSettingsButton" class="btn-glossy blue text-sm">
+                Config
+            </button>
+            <button id="openTipsButton" class="btn-glossy green text-sm">
+                Dicas
+            </button>
+        </div>
+
+        <div id="shiftFilterButtonsContainer" class="my-4 flex flex-wrap justify-center">
+        </div>
+        
+        <div class="flex justify-between items-center mb-4">
+            <button id="prevMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+            </button>
+            <div class="flex items-center space-x-2">
+                <h2 id="currentMonthYear" class="text-xl font-semibold"></h2>
+                <button id="summarizeMonthButton" title="Resumir Mês com IA" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles"><path d="m12 3-1.9 3.9-3.9 1.9 3.9 1.9 1.9 3.9 1.9-3.9 3.9-1.9-3.9-1.9Z"/><path d="M5 12H3"/><path d="M5 22v-2"/><path d="m21 12-2 0"/><path d="m21 22-2-2"/><path d="m12 5 1.5-3"/><path d="M3 5l2 2"/><path d="m19 5-2 2"/></svg>
+                </button>
+            </div>
+            <button id="nextMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+            </button>
+        </div>
+        <div id="summaryContainer" class="hidden my-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg shadow"></div>
+        <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+
+        <div class="mt-4 flex flex-col justify-start items-start space-y-1 text-xs text-gray-600 dark:text-gray-400">
+            <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                <span class="font-semibold">Aniversário</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span class="font-semibold">Dias com agenda</span>
+            </div>
+            <div id="holidayLegendContainer" class="flex flex-col items-start space-y-1">
+                </div>
+        </div>
+
+        <footer class="text-center mt-6">
+            <div class="flex justify-center items-center space-x-2 text-xs text-gray-400 dark:text-gray-500">
+                <span>By KleDer</span>
+                <span>|</span>
+                <a href="mailto:kgfontinelle@gmail.com" class="hover:text-blue-500">kgfontinelle@gmail.com</a>
+            </div>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.09</p>
+        </footer>
+    </div>
+
+    <div id="settingsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Configurações da Escala</h3>
+                <button id="closeSettingsButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label for="scheduleType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Escala:</label>
+                    <select id="scheduleType" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></select>
+                </div>
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                    <h4 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2">Configuração das Alas:</h4>
+                    <div id="shiftSettingsContainer" class="space-y-3"></div>
+                </div>
+            </div>
+            <div class="mt-8 flex justify-center">
+                <button id="saveSettingsButton" class="btn-glossy green">
+                    Salvar Configurações
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="eventModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="eventModalTitle" class="text-xl font-semibold text-gray-800 dark:text-gray-100">Adicionar/Editar Evento</h3>
+                <button id="closeEventModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div>
+                <label for="eventDescriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição(ões) do Evento (use "niver" para aniversários; uma por linha):</label>
+                <textarea id="eventDescriptionInput" placeholder="Ex: GSV&#10;Niver do João&#10;Consulta médica" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="3"></textarea>
+                <p id="suggestionLoadingText" class="hidden text-center text-gray-500 dark:text-gray-400 animate-pulse">Buscando sugestão... ✨</p>
+            </div>
+             <div class="mt-4 flex justify-between items-center">
+                <button id="suggestActivityButton" class="btn-glossy teal text-xs">
+                    ✨ Sugerir Atividade
+                </button>
+                <div class="flex space-x-2">
+                     <button id="deleteEventButton" class="btn-glossy red">
+                         Deletar
+                    </button>
+                    <button id="saveEventButton" class="btn-glossy green">
+                        Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tipsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Dicas de Uso</h3>
+                <button id="closeTipsModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <ul class="space-y-3 text-gray-700 dark:text-gray-300 list-disc list-inside">
+                <li>Para que os aniversários fiquem gravados para os anos subsequentes, escreva "niver" antes do nome da pessoa.</li>
+                <li>Nas configurações, escolha qual escala quer ver e depois clique em "Salvar".</li>
+                <li>Caso queira modificar as cores ou as legendas das alas, fique à vontade na tela de configurações.</li>
+                <li>Clique em qualquer dia para adicionar um evento pessoal.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="selectAlaForSummaryModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Resumo do Mês</h3>
+                <button id="closeSummaryAlaModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <p class="text-gray-700 dark:text-gray-300 mb-4">Por favor, selecione a sua ala para gerar um resumo personalizado:</p>
+            <div id="summaryAlaButtonsContainer" class="flex flex-wrap justify-center gap-3">
+                </div>
+        </div>
+    </div>
+    
+    <div id="birthdayOverlay" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[1001]">
+        <div id="confettiContainer" class="absolute inset-0"></div>
+        <div id="birthdayMessage" class="relative"></div>
+    </div>
+
+    <div id="toastNotification" class="hidden fixed bottom-5 right-5 p-4 rounded-lg text-white shadow-lg max-w-xs z-[100]" role="alert">
+        <span id="toastMessage"></span>
+    </div>
+    
     <script type="module">
         // Elementos da UI
         const calendarGrid = document.getElementById('calendarGrid');
@@ -49,7 +302,7 @@
         let settings = {
             scheduleType: 'ABCD_24_72', 
             referenceDate: '2025-07-11', 
-            startDayOfWeek: 'Sunday',    
+            startDayOfWeek: 'Sunday',   
             shifts: [ 
                 { label: 'A', color: '#FF0000' }, 
                 { label: 'B', color: '#00FF00' }, 
@@ -82,14 +335,14 @@
         // --- Lógica de Feriados ---
         function getEaster(year) {
             const f = Math.floor,
-                  G = year % 19,
-                  C = f(year / 100),
-                  H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30,
-                  I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11)),
-                  J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7,
-                  L = I - J,
-                  month = 3 + f((L + 40) / 44),
-                  day = L + 28 - 31 * f(month / 4);
+                G = year % 19,
+                C = f(year / 100),
+                H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30,
+                I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11)),
+                J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7,
+                L = I - J,
+                month = 3 + f((L + 40) / 44),
+                day = L + 28 - 31 * f(month / 4);
             return new Date(year, month - 1, day);
         }
 
@@ -302,10 +555,10 @@
             if (!hexColor || hexColor.length < 7) return '#FFFFFF';
             try {
                 const num = parseInt(hexColor.slice(1), 16),
-                      amt = Math.round(2.55 * percent),
-                      R = (num >> 16) + amt,
-                      G = ((num >> 8) & 0x00FF) + amt,
-                      B = (num & 0x0000FF) + amt;
+                    amt = Math.round(2.55 * percent),
+                    R = (num >> 16) + amt,
+                    G = ((num >> 8) & 0x00FF) + amt,
+                    B = (num & 0x0000FF) + amt;
                 return "#" + (0x1000000 + (R > 255 ? 255 : R < 0 ? 0 : R) * 0x10000 + (G > 255 ? 255 : G < 0 ? 0 : G) * 0x100 + (B > 255 ? 255 : B < 0 ? 0 : B)).toString(16).slice(1);
             } catch (e) {
                 return '#FFFFFF';
@@ -317,7 +570,8 @@
             const button = document.createElement('button');
             button.textContent = 'Todas as Alas';
             const sizeClasses = settings.viewMode === 'mobile' ? 'text-xs py-1 px-3' : 'text-sm';
-            button.className = `btn-glossy ${sizeClasses} ${settings.filteredShiftLabel === null ? 'blue' : 'grey'}`;
+            // MODIFICADO: Adicionado 'w-full md:w-auto' para controlar o layout responsivo
+            button.className = `btn-glossy ${sizeClasses} ${settings.filteredShiftLabel === null ? 'blue' : 'grey'} w-full md:w-auto`;
             button.onclick = () => {
                 settings.filteredShiftLabel = null;
                 saveSettingsToLocalStorage();
@@ -668,10 +922,10 @@
             if (!hexColor || hexColor.length < 7) return '#555555';
             try {
                 const num = parseInt(hexColor.slice(1), 16),
-                      amt = Math.round(2.55 * percent),
-                      R = (num >> 16) - amt,
-                      G = ((num >> 8) & 0x00FF) - amt,
-                      B = (num & 0x0000FF) - amt;
+                    amt = Math.round(2.55 * percent),
+                    R = (num >> 16) - amt,
+                    G = ((num >> 8) & 0x00FF) - amt,
+                    B = (num & 0x0000FF) - amt;
                 return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
             } catch (e) {
                 console.error("Erro ao escurecer a cor:", hexColor, e);
@@ -828,16 +1082,9 @@
 
         // --- Lógica da API Gemini ---
 
-        const geminiApiKey = "AIzaSyB8_IIdJROsqJ4VE8jhJWVlIyBuDUjOXbI"; 
+        const geminiApiKey = ""; // A chave será injetada em tempo de execução
 
         async function callGemini(prompt) {
-            if (!geminiApiKey || geminiApiKey === "COLE_SUA_CHAVE_REAL_AQUI") {
-                const errorMessage = "Chave de API do Gemini não configurada.";
-                console.error(errorMessage);
-                showToast(errorMessage, "error");
-                return null;
-            }
-
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`;
             try {
                 const response = await fetch(apiUrl, {
@@ -965,27 +1212,27 @@
              
              let isWorkDay = false;
              if(settings.filteredShiftLabel) {
-                if((shifts.dayShift && shifts.dayShift.label === settings.filteredShiftLabel) || (shifts.nightShift && shifts.nightShift.label === settings.filteredShiftLabel)) {
-                    isWorkDay = true;
-                }
+                 if((shifts.dayShift && shifts.dayShift.label === settings.filteredShiftLabel) || (shifts.nightShift && shifts.nightShift.label === settings.filteredShiftLabel)) {
+                     isWorkDay = true;
+                 }
              } else if (shifts.dayShift || shifts.nightShift) {
-                isWorkDay = true;
+                 isWorkDay = true;
              }
 
              const context = isWorkDay 
-                ? "Estou de serviço neste dia. Sugira uma dica rápida de bem-estar, um lanche nutritivo ou uma atividade curta para fazer durante um intervalo."
-                : "Estou de folga neste dia. Sugira uma atividade de lazer, que pode ser para relaxar, para fazer com a família, ou um hobby.";
+                 ? "Estou de serviço neste dia. Sugira uma dica rápida de bem-estar, um lanche nutritivo ou uma atividade curta para fazer durante um intervalo."
+                 : "Estou de folga neste dia. Sugira uma atividade de lazer, que pode ser para relaxar, para fazer com a família, ou um hobby.";
 
              const prompt = `
-                Sou um bombeiro. Para o dia ${formattedDate}, ${context}
-                Forneça uma sugestão curta e direta.
+                 Sou um bombeiro. Para o dia ${formattedDate}, ${context}
+                 Forneça uma sugestão curta e direta.
              `;
 
              const suggestion = await callGemini(prompt);
 
              if (suggestion) {
-                const currentText = eventDescriptionInput.value;
-                eventDescriptionInput.value = currentText ? `${currentText}\n${suggestion}` : suggestion;
+                 const currentText = eventDescriptionInput.value;
+                 eventDescriptionInput.value = currentText ? `${currentText}\n${suggestion}` : suggestion;
              }
              
              suggestionLoadingText.classList.add('hidden');
@@ -1022,11 +1269,12 @@
             messageElement.textContent = `Parabéns, ${name}!`;
             overlay.classList.remove('hidden');
 
-            const birthdaySound = new Audio('festa.mp3');
-            birthdaySound.play().catch(e => {
-                console.error("Erro ao tocar o som:", e);
-                showToast("O navegador bloqueou a reprodução automática do som.", "info");
-            });
+            // O áudio foi removido para evitar problemas de bloqueio de autoplay e dependência de arquivo externo
+            // const birthdaySound = new Audio('festa.mp3');
+            // birthdaySound.play().catch(e => {
+            //     console.error("Erro ao tocar o som:", e);
+            //     showToast("O navegador bloqueou a reprodução automática do som.", "info");
+            // });
 
             createConfetti();
 
@@ -1055,257 +1303,5 @@
         checkAndTriggerBirthdayOnLoad(); 
 
     </script>
-    <style> 
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
-        .modal.hidden { opacity: 0; visibility: hidden; }
-        .btn-glossy {
-            position: relative;
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            font-weight: 600;
-            color: white;
-            text-shadow: 0 -1px 1px rgba(0,0,0,0.3);
-            border: 1px solid rgba(0,0,0,0.4);
-            box-shadow:
-                inset 0 1px 1px rgba(255,255,255,0.4),
-                0 4px 6px -1px rgba(0,0,0,0.3), 
-                0 2px 4px -2px rgba(0,0,0,0.3);
-            transition: all 0.15s ease-out;
-            transform: translateZ(0); /* For GPU acceleration */
-            overflow: hidden;
-        }
-        .btn-glossy::before {
-            content: '';
-            position: absolute;
-            top: 1px;
-            left: 5%;
-            width: 90%;
-            height: 50%;
-            background: linear-gradient(to bottom, rgba(255,255,255,0.6), rgba(255,255,255,0.1));
-            border-radius: 9999px;
-            opacity: 0.8;
-        }
-        .btn-glossy:active {
-            transform: translateY(2px);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
-        }
-        .btn-glossy.purple { background: linear-gradient(to bottom, #a855f7, #7e22ce); }
-        .btn-glossy.green { background: linear-gradient(to bottom, #22c55e, #15803d); }
-        .btn-glossy.blue { background: linear-gradient(to bottom, #3b82f6, #1d4ed8); }
-        .btn-glossy.red { background: linear-gradient(to bottom, #ef4444, #b91c1c); }
-        .btn-glossy.teal { background: linear-gradient(to bottom, #14b8a6, #0f766e); }
-        .btn-glossy.grey { 
-            background: linear-gradient(to bottom, #f5f5f5, #e0e0e0);
-            color: #333;
-            text-shadow: 0 1px 1px rgba(255,255,255,0.7);
-        }
-
-        /* --- ESTILOS PARA ANIMAÇÃO DE ANIVERSÁRIO --- */
-        #birthdayOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 1001; /* Z-index alto para ficar sobre tudo */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-        }
-        #confettiContainer {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-        }
-        #birthdayMessage {
-            color: white;
-            font-size: 3.5em; /* Aumentado para mais impacto */
-            font-weight: bold;
-            text-shadow: 3px 3px 8px black;
-            z-index: 1002;
-            animation: pop-in 0.5s ease-out;
-            text-align: center;
-        }
-
-        @keyframes pop-in {
-            from { transform: scale(0.5) rotate(-15deg); opacity: 0; }
-            to { transform: scale(1) rotate(0deg); opacity: 1; }
-        }
-
-        .confetti {
-            position: absolute;
-            width: 10px;
-            height: 20px;
-            border-radius: 2px;
-            opacity: 0.9;
-            animation: fall 4s linear forwards;
-        }
-
-        @keyframes fall {
-            to {
-                transform: translateY(110vh) rotate(720deg);
-                opacity: 0;
-            }
-        }
-    </style>
-</head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 min-h-screen flex flex-col items-center">
-
-    <div id="mainCalendarContainer" class="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6">
-        <div class="text-center mb-4">
-            <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário</h1>
-        </div>
-        <div class="flex justify-center items-center mb-4 space-x-3">
-            <button id="toggleViewButton" class="btn-glossy purple text-sm">
-                PC
-            </button>
-            <button id="openSettingsButton" class="btn-glossy blue text-sm">
-                Config
-            </button>
-            <button id="openTipsButton" class="btn-glossy green text-sm">
-                Dicas
-            </button>
-        </div>
-
-        <div id="shiftFilterButtonsContainer" class="my-4 flex flex-wrap justify-center">
-        </div>
-        
-        <div class="flex justify-between items-center mb-4">
-            <button id="prevMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-            </button>
-            <div class="flex items-center space-x-2">
-                <h2 id="currentMonthYear" class="text-xl font-semibold"></h2>
-                <button id="summarizeMonthButton" title="Resumir Mês com IA" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles"><path d="m12 3-1.9 3.9-3.9 1.9 3.9 1.9 1.9 3.9 1.9-3.9 3.9-1.9-3.9-1.9Z"/><path d="M5 12H3"/><path d="M5 22v-2"/><path d="m21 12-2 0"/><path d="m21 22-2-2"/><path d="m12 5 1.5-3"/><path d="M3 5l2 2"/><path d="m19 5-2 2"/></svg>
-                </button>
-            </div>
-            <button id="nextMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-            </button>
-        </div>
-        <div id="summaryContainer" class="hidden my-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg shadow"></div>
-        <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
-
-        <div class="mt-4 flex flex-col justify-start items-start space-y-1 text-xs text-gray-600 dark:text-gray-400">
-            <div class="flex items-center space-x-2">
-                <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                <span class="font-semibold">Aniversário</span>
-            </div>
-            <div class="flex items-center space-x-2">
-                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span class="font-semibold">Dias com agenda</span>
-            </div>
-            <div id="holidayLegendContainer" class="flex flex-col items-start space-y-1">
-                </div>
-        </div>
-
-        <footer class="text-center mt-6">
-            <div class="flex justify-center items-center space-x-2 text-xs text-gray-400 dark:text-gray-500">
-                <span>By KleDer</span>
-                <span>|</span>
-                <a href="mailto:kgfontinelle@gmail.com" class="hover:text-blue-500">kgfontinelle@gmail.com</a>
-            </div>
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.09</p>
-        </footer>
-    </div>
-
-    <div id="settingsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Configurações da Escala</h3>
-                <button id="closeSettingsButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <label for="scheduleType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Escala:</label>
-                    <select id="scheduleType" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></select>
-                </div>
-                <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                    <h4 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2">Configuração das Alas:</h4>
-                    <div id="shiftSettingsContainer" class="space-y-3"></div>
-                </div>
-            </div>
-            <div class="mt-8 flex justify-center">
-                <button id="saveSettingsButton" class="btn-glossy green">
-                    Salvar Configurações
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="eventModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h3 id="eventModalTitle" class="text-xl font-semibold text-gray-800 dark:text-gray-100">Adicionar/Editar Evento</h3>
-                <button id="closeEventModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <div>
-                <label for="eventDescriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição(ões) do Evento (use "niver" para aniversários; uma por linha):</label>
-                <textarea id="eventDescriptionInput" placeholder="Ex: GSV&#10;Niver do João&#10;Consulta médica" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="3"></textarea>
-                <p id="suggestionLoadingText" class="hidden text-center text-gray-500 dark:text-gray-400 animate-pulse">Buscando sugestão... ✨</p>
-            </div>
-             <div class="mt-4 flex justify-between items-center">
-                <button id="suggestActivityButton" class="btn-glossy teal text-xs">
-                    ✨ Sugerir Atividade
-                </button>
-                <div class="flex space-x-2">
-                     <button id="deleteEventButton" class="btn-glossy red">
-                         Deletar
-                    </button>
-                    <button id="saveEventButton" class="btn-glossy green">
-                        Salvar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="tipsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Dicas de Uso</h3>
-                <button id="closeTipsModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <ul class="space-y-3 text-gray-700 dark:text-gray-300 list-disc list-inside">
-                <li>Para que os aniversários fiquem gravados para os anos subsequentes, escreva "niver" antes do nome da pessoa.</li>
-                <li>Nas configurações, escolha qual escala quer ver e depois clique em "Salvar".</li>
-                <li>Caso queira modificar as cores ou as legendas das alas, fique à vontade na tela de configurações.</li>
-                <li>Clique em qualquer dia para adicionar um evento pessoal.</li>
-            </ul>
-        </div>
-    </div>
-
-    <div id="selectAlaForSummaryModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-sm">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Resumo do Mês</h3>
-                <button id="closeSummaryAlaModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <p class="text-gray-700 dark:text-gray-300 mb-4">Por favor, selecione a sua ala para gerar um resumo personalizado:</p>
-            <div id="summaryAlaButtonsContainer" class="flex flex-wrap justify-center gap-3">
-                </div>
-        </div>
-    </div>
-    
-    <div id="birthdayOverlay" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[1001]">
-        <div id="confettiContainer" class="absolute inset-0"></div>
-        <div id="birthdayMessage" class="relative"></div>
-    </div>
-
-    <div id="toastNotification" class="hidden fixed bottom-5 right-5 p-4 rounded-lg text-white shadow-lg max-w-xs z-[100]" role="alert">
-        <span id="toastMessage"></span>
-    </div>
 </body>
 </html>
