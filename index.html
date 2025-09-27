@@ -160,7 +160,7 @@
                 <span>|</span>
                 <a href="mailto:kgfontinelle@gmail.com" class="hover:text-blue-500">kgfontinelle@gmail.com</a>
             </div>
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.09</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.10</p>
         </footer>
     </div>
 
@@ -203,13 +203,17 @@
                 <textarea id="eventDescriptionInput" placeholder="Ex: GSV&#10;Niver do João&#10;Consulta médica" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="3"></textarea>
                 <p id="suggestionLoadingText" class="hidden text-center text-gray-500 dark:text-gray-400 animate-pulse">Buscando sugestão... ✨</p>
             </div>
-             <div class="mt-4 flex justify-between items-center">
+             <div class="mt-4 flex flex-wrap justify-between items-center gap-2">
                 <button id="suggestActivityButton" class="btn-glossy teal text-xs">
                     ✨ Sugerir Atividade
                 </button>
-                <div class="flex space-x-2">
-                     <button id="deleteEventButton" class="btn-glossy red">
-                         Deletar
+                <div class="flex items-center space-x-2">
+                    <button id="addToGoogleCalendarButton" title="Adicionar ao Google Agenda" class="btn-glossy blue text-xs flex items-center space-x-1.5 px-3 py-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar-plus"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8"/><line x1="16" x2="22" y1="19" y2="19"/><line x1="19" x2="19" y1="16" y2="22"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                        <span>Agenda</span>
+                    </button>
+                    <button id="deleteEventButton" class="btn-glossy red">
+                        Deletar
                     </button>
                     <button id="saveEventButton" class="btn-glossy green">
                         Salvar
@@ -283,6 +287,7 @@
         const saveEventButton = document.getElementById('saveEventButton');
         const deleteEventButton = document.getElementById('deleteEventButton');
         const closeEventModalButton = document.getElementById('closeEventModalButton');
+        const addToGoogleCalendarButton = document.getElementById('addToGoogleCalendarButton');
         
         // Elementos para Dicas
         const tipsModal = document.getElementById('tipsModal');
@@ -570,7 +575,6 @@
             const button = document.createElement('button');
             button.textContent = 'Todas as Alas';
             const sizeClasses = settings.viewMode === 'mobile' ? 'text-xs py-1 px-3' : 'text-sm';
-            // MODIFICADO: Adicionado 'w-full md:w-auto' para controlar o layout responsivo
             button.className = `btn-glossy ${sizeClasses} ${settings.filteredShiftLabel === null ? 'blue' : 'grey'} w-full md:w-auto`;
             button.onclick = () => {
                 settings.filteredShiftLabel = null;
@@ -607,7 +611,6 @@
             const patternDetails = schedulePatterns[settings.scheduleType];
             if (!patternDetails || !settings.shifts || !settings.shifts.length) return;
 
-            // Layout de linha única para PC e Celular
             shiftFilterButtonsContainer.className = 'my-4 flex flex-wrap justify-center gap-2';
 
             const showAllButton = createShowAllButton();
@@ -843,6 +846,38 @@
             eventModal.classList.remove('hidden');
         }
 
+        function handleAddToGoogleCalendar() {
+            if (!currentlyEditingEventDate) {
+                showToast("Nenhuma data selecionada.", "error");
+                return;
+            }
+
+            const eventText = eventDescriptionInput.value.trim();
+            if (!eventText) {
+                showToast("Por favor, adicione uma descrição para o evento.", "info");
+                return;
+            }
+
+            const year = currentlyEditingEventDate.getFullYear();
+            const month = String(currentlyEditingEventDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentlyEditingEventDate.getDate()).padStart(2, '0');
+            const startDate = `${year}${month}${day}`;
+
+            // Para eventos de dia inteiro, o Google Agenda espera que a data final seja o dia seguinte.
+            const nextDay = new Date(currentlyEditingEventDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextYear = nextDay.getFullYear();
+            const nextMonth = String(nextDay.getMonth() + 1).padStart(2, '0');
+            const nextDayOfMonth = String(nextDay.getDate()).padStart(2, '0');
+            const endDate = `${nextYear}${nextMonth}${nextDayOfMonth}`;
+
+            const encodedText = encodeURIComponent(eventText);
+            
+            const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodedText}&dates=${startDate}/${endDate}`;
+
+            window.open(googleCalendarUrl, '_blank');
+        }
+
         closeEventModalButton.addEventListener('click', () => eventModal.classList.add('hidden'));
 
         saveEventButton.addEventListener('click', () => {
@@ -871,9 +906,7 @@
                 renderCalendar();
                 eventModal.classList.add('hidden');
 
-                // --- MODO DE TESTE ---
                 if (niverLines.length > 0) {
-                    showToast("Modo de teste: Reproduzindo animação...", "info");
                     playBirthdayAnimation(niverLines[0]);
                 }
             }
@@ -1062,6 +1095,7 @@
 
         openTipsButton.addEventListener('click', () => tipsModal.classList.remove('hidden'));
         closeTipsModalButton.addEventListener('click', () => tipsModal.classList.add('hidden'));
+        addToGoogleCalendarButton.addEventListener('click', handleAddToGoogleCalendar);
 
         function showToast(message, type = 'info') {  
             const toast = document.getElementById('toastNotification');
@@ -1107,7 +1141,7 @@
                 }
             } catch (error) {
                 console.error("Erro ao chamar a API Gemini:", error);
-                showToast(`Erro na IA: ${error.message}. Verifique a chave de API e o console.`, "error");
+                showToast(`Erro na IA: ${error.message}.`, "error");
                 return null;
             }
         }
@@ -1268,13 +1302,6 @@
             
             messageElement.textContent = `Parabéns, ${name}!`;
             overlay.classList.remove('hidden');
-
-            // O áudio foi removido para evitar problemas de bloqueio de autoplay e dependência de arquivo externo
-            // const birthdaySound = new Audio('festa.mp3');
-            // birthdaySound.play().catch(e => {
-            //     console.error("Erro ao tocar o som:", e);
-            //     showToast("O navegador bloqueou a reprodução automática do som.", "info");
-            // });
 
             createConfetti();
 
