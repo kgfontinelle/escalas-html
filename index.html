@@ -6,6 +6,196 @@
     <title>Calendário de Escalas de Serviço</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style> 
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
+        .modal.hidden { opacity: 0; visibility: hidden; }
+        .btn-glossy {
+            position: relative;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 -1px 1px rgba(0,0,0,0.3);
+            border: 1px solid rgba(0,0,0,0.4);
+            box-shadow:
+                inset 0 1px 1px rgba(255,255,255,0.4),
+                0 4px 6px -1px rgba(0,0,0,0.3), 
+                0 2px 4px -2px rgba(0,0,0,0.3);
+            transition: all 0.15s ease-out;
+            transform: translateZ(0); /* For GPU acceleration */
+            overflow: hidden;
+        }
+        .btn-glossy::before {
+            content: '';
+            position: absolute;
+            top: 1px;
+            left: 5%;
+            width: 90%;
+            height: 50%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.6), rgba(255,255,255,0.1));
+            border-radius: 9999px;
+            opacity: 0.8;
+        }
+        .btn-glossy:active {
+            transform: translateY(2px);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+        }
+        .btn-glossy.purple { background: linear-gradient(to bottom, #a855f7, #7e22ce); }
+        .btn-glossy.green { background: linear-gradient(to bottom, #22c55e, #15803d); }
+        .btn-glossy.blue { background: linear-gradient(to bottom, #3b82f6, #1d4ed8); }
+        .btn-glossy.red { background: linear-gradient(to bottom, #ef4444, #b91c1c); }
+        .btn-glossy.teal { background: linear-gradient(to bottom, #14b8a6, #0f766e); }
+        .btn-glossy.grey { 
+            background: linear-gradient(to bottom, #f5f5f5, #e0e0e0);
+            color: #333;
+            text-shadow: 0 1px 1px rgba(255,255,255,0.7);
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+
+    <div id="mainCalendarContainer" class="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6">
+        <div class="text-center mb-4">
+            <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário de Escalas</h1>
+        </div>
+        <div class="flex justify-center items-center mb-4 space-x-3">
+            <button id="toggleViewButton" class="btn-glossy purple text-sm">
+                PC
+            </button>
+            <button id="openSettingsButton" class="btn-glossy blue text-sm">
+                Config
+            </button>
+            <button id="openTipsButton" class="btn-glossy green text-sm">
+                Dicas
+            </button>
+        </div>
+
+        <div id="shiftFilterButtonsContainer" class="my-4 flex flex-wrap justify-center">
+        </div>
+        
+        <div class="flex justify-between items-center mb-4">
+            <button id="prevMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+            </button>
+            <div class="flex items-center space-x-2">
+                <h2 id="currentMonthYear" class="text-xl font-semibold"></h2>
+                <!-- Botão de IA Removido -->
+            </div>
+            <button id="nextMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+            </button>
+        </div>
+        <!-- Container de Resumo da IA removido -->
+        <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+
+        <!-- Legenda de Eventos e Feriados -->
+        <div class="mt-4 flex flex-col justify-start items-start space-y-1 text-xs text-gray-600 dark:text-gray-400">
+            <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                <span class="font-semibold">Aniversário</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span class="font-semibold">Dias com agenda</span>
+            </div>
+            <!-- Container para a legenda de feriados dinâmica -->
+            <div id="holidayLegendContainer" class="flex flex-col items-start space-y-1">
+                <!-- A legenda de feriados será inserida aqui pelo JavaScript -->
+            </div>
+        </div>
+
+        <footer class="text-center mt-6">
+            <div class="flex justify-center items-center space-x-2 text-xs text-gray-400 dark:text-gray-500">
+                <span>By KleDer</span>
+                <span>|</span>
+                <a href="mailto:kgfontinelle@gmail.com" class="hover:text-blue-500">kgfontinelle@gmail.com</a>
+            </div>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.08</p>
+        </footer>
+    </div>
+
+    <!-- Modal de Configurações da Escala -->
+    <div id="settingsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Configurações da Escala</h3>
+                <button id="closeSettingsButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label for="scheduleType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Escala:</label>
+                    <select id="scheduleType" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></select>
+                </div>
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                    <h4 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2">Configuração das Alas:</h4>
+                    <div id="shiftSettingsContainer" class="space-y-3"></div>
+                </div>
+            </div>
+            <div class="mt-8 flex justify-center">
+                <button id="saveSettingsButton" class="btn-glossy green">
+                    Salvar Configurações
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Eventos -->
+    <div id="eventModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="eventModalTitle" class="text-xl font-semibold text-gray-800 dark:text-gray-100">Adicionar/Editar Evento</h3>
+                <button id="closeEventModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div>
+                <label for="eventDescriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição(ões) do Evento (use "niver" para aniversários; uma por linha):</label>
+                <textarea id="eventDescriptionInput" placeholder="Ex: GSV&#10;Niver do João&#10;Consulta médica" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="3"></textarea>
+            </div>
+             <div class="mt-4 flex justify-between items-center">
+                <button id="googleAgendaButton" class="btn-glossy blue text-xs">
+                    Salvar no Google Agenda
+                </button>
+                <div class="flex space-x-2">
+                     <button id="deleteEventButton" class="btn-glossy red">
+                        Deletar
+                    </button>
+                    <button id="saveEventButton" class="btn-glossy green">
+                        Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Dicas -->
+    <div id="tipsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Dicas de Uso</h3>
+                <button id="closeTipsModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <ul class="space-y-3 text-gray-700 dark:text-gray-300 list-disc list-inside">
+                <li>Para que os aniversários fiquem gravados para os anos subsequentes, escreva "niver" antes do nome da pessoa.</li>
+                <li>Nas configurações, escolha qual escala quer ver e depois clique em "Salvar".</li>
+                <li>Caso queira modificar as cores ou as legendas das alas, fique à vontade na tela de configurações.</li>
+                <li>Clique em qualquer dia para adicionar um evento pessoal.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Modal de Seleção de Ala para Resumo (Removido) -->
+
+    <div id="toastNotification" class="hidden fixed bottom-5 right-5 p-4 rounded-lg text-white shadow-lg max-w-xs z-[100] opacity-0" role="alert">
+        <span id="toastMessage"></span>
+    </div>
+
     <script type="module">
         // Elementos da UI
         const calendarGrid = document.getElementById('calendarGrid');
@@ -31,20 +221,14 @@
         const saveEventButton = document.getElementById('saveEventButton');
         const deleteEventButton = document.getElementById('deleteEventButton');
         const closeEventModalButton = document.getElementById('closeEventModalButton');
+        const googleAgendaButton = document.getElementById('googleAgendaButton'); // Novo botão
         
         // Elementos para Dicas
         const tipsModal = document.getElementById('tipsModal');
         const openTipsButton = document.getElementById('openTipsButton');
         const closeTipsModalButton = document.getElementById('closeTipsModalButton');
 
-        // Elementos Gemini
-        const summarizeMonthButton = document.getElementById('summarizeMonthButton');
-        const summaryContainer = document.getElementById('summaryContainer');
-        const suggestActivityButton = document.getElementById('suggestActivityButton');
-        const suggestionLoadingText = document.getElementById('suggestionLoadingText');
-        const selectAlaForSummaryModal = document.getElementById('selectAlaForSummaryModal');
-        const summaryAlaButtonsContainer = document.getElementById('summaryAlaButtonsContainer');
-        const closeSummaryAlaModalButton = document.getElementById('closeSummaryAlaModalButton');
+        // Elementos Gemini Removidos
         
         let currentDate = new Date();
         let settings = {
@@ -360,19 +544,10 @@
             const patternDetails = schedulePatterns[settings.scheduleType];
             if (!patternDetails || !settings.shifts || !settings.shifts.length) return;
 
-            const isMobileAbcd = settings.scheduleType === 'ABCD_24_72' && settings.viewMode === 'mobile';
-
-            // Alterado para 'justify-center' e 'flex-wrap'
-            if (isMobileAbcd) {
-                shiftFilterButtonsContainer.className = 'my-4 grid grid-cols-2 gap-3';
-            } else {
-                shiftFilterButtonsContainer.className = 'my-4 flex flex-wrap justify-center gap-3';
-            }
+            // Define o layout como flex-wrap e justify-center para todos os casos
+            shiftFilterButtonsContainer.className = 'my-4 flex flex-wrap justify-center gap-2';
 
             const showAllButton = createShowAllButton();
-            if (isMobileAbcd) {
-                showAllButton.classList.add('col-span-2');
-            }
             shiftFilterButtonsContainer.appendChild(showAllButton);
 
             const sortedShifts = [...settings.shifts].sort((a, b) => a.label.localeCompare(b.label));
@@ -439,7 +614,7 @@
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayCell = document.createElement('div');
-                // Removido 'aspect-square' e restaurado min-h
+                // Revertido para o min-h para estabilidade do layout
                 let cellClasses = 'border-2 shadow-sm rounded-tr-2xl rounded-bl-2xl text-center flex flex-col justify-start items-center cursor-pointer overflow-hidden relative';
                 if (settings.viewMode === 'mobile') {
                     cellClasses += ` ${is12hPattern ? 'p-0 min-h-[60px]' : 'p-1 min-h-[50px]'}`; 
@@ -605,7 +780,9 @@
             const recurringText = recurringEvents[recurringDateKey] || '';
             const eventText = events[dateKey] || '';
             eventDescriptionInput.value = [recurringText, eventText].filter(Boolean).join('\n');
-            suggestionLoadingText.classList.add('hidden');
+            
+            // Ocultar elementos de IA (se existirem de versões anteriores)
+            // if(suggestionLoadingText) suggestionLoadingText.classList.add('hidden');
             eventDescriptionInput.classList.remove('hidden');
 
             eventModal.classList.remove('hidden');
@@ -617,7 +794,9 @@
             if (currentlyEditingEventDate) {
                 const dateKey = `${currentlyEditingEventDate.getFullYear()}-${String(currentlyEditingEventDate.getMonth() + 1).padStart(2, '0')}-${String(currentlyEditingEventDate.getDate()).padStart(2, '0')}`;
                 const recurringDateKey = `${String(currentlyEditingEventDate.getMonth() + 1).padStart(2, '0')}-${String(currentlyEditingEventDate.getDate()).padStart(2, '0')}`;
-                const descriptionLines = eventDescriptionInput.value.trim().split('\n');
+                
+                // CORREÇÃO: Filtrar linhas vazias para que apagar o texto funcione
+                const descriptionLines = eventDescriptionInput.value.trim().split('\n').filter(line => line.trim() !== '');
 
                 const niverLines = descriptionLines.filter(line => line.toLowerCase().includes('niver'));
                 const eventLines = descriptionLines.filter(line => !line.toLowerCase().includes('niver'));
@@ -663,6 +842,46 @@
                 }
                 eventModal.classList.add('hidden');
             }
+        });
+
+        // Lógica do Google Agenda
+        googleAgendaButton.addEventListener('click', () => {
+            if (!currentlyEditingEventDate) {
+                showToast("Não há data selecionada para o evento.", "error");
+                return;
+            }
+
+            const descriptions = eventDescriptionInput.value.trim();
+            if (!descriptions) {
+                showToast("Por favor, adicione uma descrição ao evento primeiro.", "info");
+                return;
+            }
+
+            const title = descriptions.split('\n')[0];
+            const details = descriptions.split('\n').slice(1).join('\n');
+
+            const startDate = currentlyEditingEventDate;
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 1);
+
+            const formatDate = (date) => {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                return `${y}${m}${d}`;
+            };
+
+            const googleDates = `${formatDate(startDate)}/${formatDate(endDate)}`;
+
+            const baseUrl = 'https://www.google.com/calendar/render?action=TEMPLATE';
+            const params = new URLSearchParams({
+                'text': title,
+                'dates': googleDates,
+                'details': details
+            });
+
+            const url = `${baseUrl}&${params.toString()}`;
+            window.open(url, '_blank');
         });
 
 
@@ -838,6 +1057,8 @@
             }, 3000);
         }
 
+        // --- Lógica da API Gemini (Removida) ---
+
         // Inicialização
         populateScheduleTypes();
         loadSettingsFromLocalStorage(); 
@@ -845,191 +1066,5 @@
         applySettingsAndRender();
 
     </script>
-    <style> 
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
-        .modal.hidden { opacity: 0; visibility: hidden; }
-        .btn-glossy {
-            position: relative;
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            font-weight: 600;
-            color: white;
-            text-shadow: 0 -1px 1px rgba(0,0,0,0.3);
-            border: 1px solid rgba(0,0,0,0.4);
-            box-shadow:
-                inset 0 1px 1px rgba(255,255,255,0.4),
-                0 4px 6px -1px rgba(0,0,0,0.3), 
-                0 2px 4px -2px rgba(0,0,0,0.3);
-            transition: all 0.15s ease-out;
-            transform: translateZ(0); /* For GPU acceleration */
-            overflow: hidden;
-        }
-        .btn-glossy::before {
-            content: '';
-            position: absolute;
-            top: 1px;
-            left: 5%;
-            width: 90%;
-            height: 50%;
-            background: linear-gradient(to bottom, rgba(255,255,255,0.6), rgba(255,255,255,0.1));
-            border-radius: 9999px;
-            opacity: 0.8;
-        }
-        .btn-glossy:active {
-            transform: translateY(2px);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
-        }
-        .btn-glossy.purple { background: linear-gradient(to bottom, #a855f7, #7e22ce); }
-        .btn-glossy.green { background: linear-gradient(to bottom, #22c55e, #15803d); }
-        .btn-glossy.blue { background: linear-gradient(to bottom, #3b82f6, #1d4ed8); }
-        .btn-glossy.red { background: linear-gradient(to bottom, #ef4444, #b91c1c); }
-        .btn-glossy.teal { background: linear-gradient(to bottom, #14b8a6, #0f766e); }
-        .btn-glossy.grey { 
-            background: linear-gradient(to bottom, #f5f5f5, #e0e0e0);
-            color: #333;
-            text-shadow: 0 1px 1px rgba(255,255,255,0.7);
-        }
-
-    </style>
-</head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-
-    <div id="mainCalendarContainer" class="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6">
-        <div class="text-center mb-4">
-            <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Calendário de Escalas</h1>
-        </div>
-        <div class="flex justify-center items-center mb-4 space-x-3">
-            <button id="toggleViewButton" class="btn-glossy purple text-sm">
-                PC
-            </button>
-            <button id="openSettingsButton" class="btn-glossy blue text-sm">
-                Config
-            </button>
-            <button id="openTipsButton" class="btn-glossy green text-sm">
-                Dicas
-            </button>
-        </div>
-
-        <div id="shiftFilterButtonsContainer" class="my-4 flex flex-wrap justify-center">
-        </div>
-        
-        <div class="flex justify-between items-center mb-4">
-            <button id="prevMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-            </button>
-            <div class="flex items-center space-x-2">
-                <h2 id="currentMonthYear" class="text-xl font-semibold"></h2>
-                <!-- Botão de IA Removido -->
-            </div>
-            <button id="nextMonth" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-            </button>
-        </div>
-        <!-- Container de Resumo Removido -->
-        <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
-
-        <!-- Legenda de Eventos e Feriados -->
-        <div class="mt-4 flex flex-col justify-start items-start space-y-1 text-xs text-gray-600 dark:text-gray-400">
-            <div class="flex items-center space-x-2">
-                <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                <span class="font-semibold">Aniversário</span>
-            </div>
-            <div class="flex items-center space-x-2">
-                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span class="font-semibold">Dias com agenda</span>
-            </div>
-            <!-- Container para a legenda de feriados dinâmica -->
-            <div id="holidayLegendContainer" class="flex flex-col items-start space-y-1">
-                <!-- A legenda de feriados será inserida aqui pelo JavaScript -->
-            </div>
-        </div>
-
-        <footer class="text-center mt-6">
-            <div class="flex justify-center items-center space-x-2 text-xs text-gray-400 dark:text-gray-500">
-                <span>By KleDer</span>
-                <span>|</span>
-                <a href="mailto:kgfontinelle@gmail.com" class="hover:text-blue-500">kgfontinelle@gmail.com</a>
-            </div>
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.08</p>
-        </footer>
-    </div>
-
-    <!-- Modal de Configurações da Escala -->
-    <div id="settingsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Configurações da Escala</h3>
-                <button id="closeSettingsButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <label for="scheduleType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Escala:</label>
-                    <select id="scheduleType" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></select>
-                </div>
-                <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                    <h4 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2">Configuração das Alas:</h4>
-                    <div id="shiftSettingsContainer" class="space-y-3"></div>
-                </div>
-            </div>
-            <div class="mt-8 flex justify-center">
-                <button id="saveSettingsButton" class="btn-glossy green">
-                    Salvar Configurações
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Eventos -->
-    <div id="eventModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h3 id="eventModalTitle" class="text-xl font-semibold text-gray-800 dark:text-gray-100">Adicionar/Editar Evento</h3>
-                <button id="closeEventModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <div>
-                <label for="eventDescriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição(ões) do Evento (use "niver" para aniversários; uma por linha):</label>
-                <textarea id="eventDescriptionInput" placeholder="Ex: GSV&#10;Niver do João&#10;Consulta médica" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="3"></textarea>
-            </div>
-             <div class="mt-4 flex justify-end items-center">
-                <div class="flex space-x-2">
-                     <button id="deleteEventButton" class="btn-glossy red">
-                        Deletar
-                    </button>
-                    <button id="saveEventButton" class="btn-glossy green">
-                        Salvar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Dicas -->
-    <div id="tipsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Dicas de Uso</h3>
-                <button id="closeTipsModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <ul class="space-y-3 text-gray-700 dark:text-gray-300 list-disc list-inside">
-                <li>Para que os aniversários fiquem gravados para os anos subsequentes, escreva "niver" antes do nome da pessoa.</li>
-                <li>Nas configurações, escolha qual escala quer ver e depois clique em "Salvar".</li>
-                <li>Caso queira modificar as cores ou as legendas das alas, fique à vontade na tela de configurações.</li>
-                <li>Clique em qualquer dia para adicionar um evento pessoal.</li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- Modal de Seleção de Ala para Resumo (Removido) -->
-
-    <div id="toastNotification" class="hidden fixed bottom-5 right-5 p-4 rounded-lg text-white shadow-lg max-w-xs z-[100] opacity-0" role="alert">
-        <span id="toastMessage"></span>
-    </div>
 </body>
 </html>
