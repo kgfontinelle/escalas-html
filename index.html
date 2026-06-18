@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calendário</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Biblioteca para os confetes -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style> 
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -25,6 +27,7 @@
             transition: all 0.15s ease-out;
             transform: translateZ(0); /* For GPU acceleration */
             overflow: hidden;
+            text-transform: uppercase; /* Letras maiúsculas forçadas */
         }
         .btn-glossy::before {
             content: '';
@@ -121,7 +124,8 @@
             </button>
         </div>
 
-        <div id="shiftFilterButtonsContainer" class="my-4 flex flex-wrap justify-center">
+        <!-- Container das Alas (Layout com 2 linhas e centralizado) -->
+        <div id="shiftFilterButtonsContainer" class="my-4 flex flex-col items-center w-full max-w-sm mx-auto px-4 gap-3">
         </div>
         
         <div class="flex justify-between items-center mb-4">
@@ -154,10 +158,11 @@
                 <span>|</span>
                 <a href="mailto:kgfontinelle@gmail.com" class="hover:text-blue-500">kgfontinelle@gmail.com</a>
             </div>
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.13</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Versão 1.14</p>
         </footer>
     </div>
 
+    <!-- Modal de Configurações -->
     <div id="settingsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -184,6 +189,7 @@
         </div>
     </div>
 
+    <!-- Modal de Eventos -->
     <div id="eventModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
@@ -211,6 +217,7 @@
         </div>
     </div>
 
+    <!-- Modal de Dicas -->
     <div id="tipsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
@@ -228,27 +235,29 @@
         </div>
     </div>
     
+    <!-- Modal Animação Aniversário -->
     <div id="birthdayOverlay" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[1001]">
         <div id="confettiContainer" class="absolute inset-0"></div>
         <div id="birthdayMessage" class="relative"></div>
     </div>
 
-    <div id="dailyTipModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+    <!-- Modal de Eventos de HOJE (Popup Inicial) -->
+    <div id="dailyEventsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[1002]">
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-sm">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">💡 Dica do Dia</h3>
-                <button id="closeDailyTipModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">📅 Compromissos de Hoje</h3>
+                <button id="closeDailyEventsModalButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
-            <p id="dailyTipText" class="text-gray-700 dark:text-gray-300 mb-4 text-center"></p>
-            <div class="flex justify-end">
-                <button id="okDailyTipButton" class="btn-glossy blue text-sm">Entendi!</button>
+            <p id="dailyEventsList" class="text-gray-700 dark:text-gray-300 mb-6 font-medium whitespace-pre-wrap leading-relaxed text-center text-lg"></p>
+            <div class="flex justify-center">
+                <button id="okDailyEventsButton" class="btn-glossy blue text-sm">Entendido!</button>
             </div>
         </div>
     </div>
 
-    <div id="toastNotification" class="hidden fixed bottom-5 right-5 p-4 rounded-lg text-white shadow-lg max-w-xs z-[100]" role="alert">
+    <div id="toastNotification" class="hidden fixed bottom-5 right-5 p-4 rounded-lg text-white shadow-lg max-w-xs z-[100] opacity-0 transition-opacity duration-500" role="alert">
         <span id="toastMessage"></span>
     </div>
     
@@ -283,11 +292,11 @@
         const openTipsButton = document.getElementById('openTipsButton');
         const closeTipsModalButton = document.getElementById('closeTipsModalButton');
         
-        // Elementos da Dica Diária
-        const dailyTipModal = document.getElementById('dailyTipModal');
-        const closeDailyTipModalButton = document.getElementById('closeDailyTipModalButton');
-        const okDailyTipButton = document.getElementById('okDailyTipButton');
-        const dailyTipText = document.getElementById('dailyTipText');
+        // Elementos da Popup de Eventos Diários
+        const dailyEventsModal = document.getElementById('dailyEventsModal');
+        const closeDailyEventsModalButton = document.getElementById('closeDailyEventsModalButton');
+        const okDailyEventsButton = document.getElementById('okDailyEventsButton');
+        const dailyEventsList = document.getElementById('dailyEventsList');
         
         let currentDate = new Date();
         let settings = {
@@ -556,12 +565,14 @@
             }
         }
 
-        // --- FUNÇÕES DE BOTÕES DE FILTRO (ALTERADAS) ---
+        // --- FUNÇÕES DE BOTÕES DE FILTRO (Mantido o Layout Centralizado 1.13) ---
         function createShowAllButton() {
             const button = document.createElement('button');
-            button.textContent = 'Todas as Alas';
-            const sizeClasses = settings.viewMode === 'mobile' ? 'text-xs py-1 px-3' : 'text-sm';
-            button.className = `btn-glossy ${sizeClasses} ${settings.filteredShiftLabel === null ? 'blue' : 'grey'} w-full md:w-auto`;
+            button.textContent = 'TODAS AS ALAS';
+            button.className = `btn-glossy text-sm w-full mb-2 ${settings.filteredShiftLabel === null ? 'blue' : 'grey'}`;
+            if (settings.viewMode === 'mobile') {
+                button.classList.add('py-1', 'px-2', 'text-xs');
+            }
             button.onclick = () => {
                 settings.filteredShiftLabel = null;
                 saveSettingsToLocalStorage();
@@ -572,15 +583,26 @@
 
         function createAlaButton(shift) {
             const button = document.createElement('button');
-            button.textContent = `Ala ${shift.label}`;
-            const sizeClasses = settings.viewMode === 'mobile' ? 'text-xs py-1 px-3' : 'text-sm';
-            button.className = `btn-glossy ${sizeClasses}`;
+            button.textContent = `ALA ${shift.label}`;
+            button.className = 'btn-glossy text-sm flex-1 min-w-[60px]'; 
+            if (settings.viewMode === 'mobile') {
+                button.classList.add('py-1', 'px-2', 'text-xs');
+            }
             
-            if (settings.filteredShiftLabel === shift.label) {
-                button.style.background = `linear-gradient(to bottom, ${lightenColor(shift.color, 30)}, ${shift.color})`;
-                button.style.color = getContrastColor(shift.color);
+            // Cor de fundo sempre visível (mesmo em modo off, porém suave)
+            const baseColor = shift.color;
+            const lightColor = lightenColor(baseColor, 30);
+            button.style.background = `linear-gradient(to bottom, ${lightColor}, ${baseColor})`;
+            button.style.color = getContrastColor(baseColor);
+
+            if (settings.filteredShiftLabel !== shift.label) {
+                button.classList.add('opacity-faded'); 
+                button.style.borderColor = 'transparent';
             } else {
-                 button.classList.add('grey');
+                button.classList.remove('opacity-faded');
+                button.classList.add('active'); // Classe para forçar estado visual ativo
+                button.style.border = '2px solid white'; // Borda de destaque
+                button.style.boxShadow = 'inset 0 2px 6px rgba(0,0,0,0.4)';
             }
 
             button.onclick = () => {
@@ -597,18 +619,25 @@
             const patternDetails = schedulePatterns[settings.scheduleType];
             if (!patternDetails || !settings.shifts || !settings.shifts.length) return;
 
-            shiftFilterButtonsContainer.className = 'my-4 flex flex-wrap justify-center gap-2';
+            // Container principal flex coluna para separar "Todas as Alas" das outras
+            shiftFilterButtonsContainer.className = 'my-4 flex flex-col items-center w-full max-w-sm mx-auto px-4';
 
+            // 1. Botão "Todas as Alas" na linha de cima (Full Width)
             const showAllButton = createShowAllButton();
             shiftFilterButtonsContainer.appendChild(showAllButton);
+
+            // 2. Container para os botões das alas (linha de baixo, lado a lado)
+            const shiftsRow = document.createElement('div');
+            shiftsRow.className = 'flex w-full gap-2 justify-between'; // Flex row para colocar lado a lado e centralizar
 
             const sortedShifts = [...settings.shifts].sort((a, b) => a.label.localeCompare(b.label));
 
             sortedShifts.forEach((shift) => {
-                shiftFilterButtonsContainer.appendChild(createAlaButton(shift));
+                shiftsRow.appendChild(createAlaButton(shift));
             });
-        }
 
+            shiftFilterButtonsContainer.appendChild(shiftsRow);
+        }
 
         function renderCalendar() {  
             if (settings.viewMode === 'mobile') {
@@ -826,7 +855,6 @@
             const recurringText = recurringEvents[recurringDateKey] || '';
             const eventText = events[dateKey] || '';
             eventDescriptionInput.value = [recurringText, eventText].filter(Boolean).join('\n');
-            eventDescriptionInput.classList.remove('hidden');
 
             eventModal.classList.remove('hidden');
         }
@@ -848,7 +876,6 @@
             const day = String(currentlyEditingEventDate.getDate()).padStart(2, '0');
             const startDate = `${year}${month}${day}`;
 
-            // Para eventos de dia inteiro, o Google Agenda espera que a data final seja o dia seguinte.
             const nextDay = new Date(currentlyEditingEventDate);
             nextDay.setDate(nextDay.getDate() + 1);
             const nextYear = nextDay.getFullYear();
@@ -872,7 +899,7 @@
                 const descriptionLines = eventDescriptionInput.value.trim().split('\n');
 
                 const niverLines = descriptionLines.filter(line => line.toLowerCase().includes('niver'));
-                const eventLines = descriptionLines.filter(line => !line.toLowerCase().includes('niver'));
+                const eventLines = descriptionLines.filter(line => !line.toLowerCase().includes('niver') && line.trim() !== '');
 
                 if (niverLines.length > 0) {
                     recurringEvents[recurringDateKey] = niverLines.join('\n');
@@ -920,7 +947,6 @@
                 eventModal.classList.add('hidden');
             }
         });
-
 
         function getContrastColor(hexColor) { 
             if (!hexColor || hexColor.length < 7) return '#000000'; 
@@ -1094,30 +1120,36 @@
                 setTimeout(() => toast.classList.add('hidden'), 500); 
             }, 3000);
         }
-        
-        // --- LÓGICA DE DICA DIÁRIA ---
-        const dailyTips = [
-            'Para que os aniversários fiquem gravados para os anos subsequentes, escreva "niver" antes do nome da pessoa.',
-            'Nas configurações, você pode escolher qual escala quer ver e modificar as cores ou as legendas das alas.',
-            'Clique em qualquer dia para adicionar um evento pessoal, como uma consulta ou um lembrete.',
-            'Novo! Adicione seus compromissos diretamente no Google Agenda usando o botão "Google Agenda" na janela de eventos.'
-        ];
 
-        function showDailyTip() {
-            const randomIndex = Math.floor(Math.random() * dailyTips.length);
-            dailyTipText.textContent = dailyTips[randomIndex];
-            dailyTipModal.classList.remove('hidden');
+        // --- LÓGICA DA JANELA DE COMPROMISSOS DE HOJE ---
+        function showTodayEventsIfAny() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+
+            const dateKey = `${year}-${month}-${day}`;
+            const recurringDateKey = `${month}-${day}`;
+
+            let todayEvents = [];
+            
+            if (recurringEvents[recurringDateKey]) {
+                todayEvents.push(recurringEvents[recurringDateKey]);
+            }
+            if (events[dateKey]) {
+                todayEvents.push(events[dateKey]);
+            }
+
+            if (todayEvents.length > 0) {
+                dailyEventsList.textContent = todayEvents.join('\n');
+                dailyEventsModal.classList.remove('hidden');
+            }
         }
 
-        function closeDailyTip() {
-            dailyTipModal.classList.add('hidden');
-        }
+        closeDailyEventsModalButton.addEventListener('click', () => dailyEventsModal.classList.add('hidden'));
+        okDailyEventsButton.addEventListener('click', () => dailyEventsModal.classList.add('hidden'));
 
-        closeDailyTipModalButton.addEventListener('click', closeDailyTip);
-        okDailyTipButton.addEventListener('click', closeDailyTip);
-
-
-        // --- LÓGICA DE ANIVERSÁRIO SURPRESA (Refatorada) ---
+        // --- LÓGICA DE ANIVERSÁRIO SURPRESA ---
         function createConfetti() {
             const container = document.getElementById('confettiContainer');
             if (!container) return;
@@ -1141,7 +1173,8 @@
             const overlay = document.getElementById('birthdayOverlay');
             const messageElement = document.getElementById('birthdayMessage');
             
-            let name = eventName.replace(/niver d[oae]\s*/i, '').trim();
+            let name = eventName.replace(/niver\s*(?:do|da|de)?\s*/i, '').trim();
+            if (!name) name = "Alguém Especial";
             
             messageElement.textContent = `Parabéns, ${name}!`;
             overlay.classList.remove('hidden');
@@ -1160,8 +1193,13 @@
             const birthdayEventText = recurringEvents[recurringDateKey];
 
             if (birthdayEventText) {
-                const firstBirthday = birthdayEventText.split('\n')[0];
-                playBirthdayAnimation(firstBirthday);
+                const lines = birthdayEventText.split('\n');
+                for(let line of lines) {
+                    if (line.toLowerCase().includes('niver')) {
+                         playBirthdayAnimation(line);
+                         break; // Dispara para o primeiro que encontrar
+                    }
+                }
             }
         }
 
@@ -1170,7 +1208,9 @@
         loadSettingsFromLocalStorage(); 
         loadEventsFromLocalStorage();
         applySettingsAndRender();
-        showDailyTip();
+        
+        // Verifica eventos de hoje e aniversários
+        showTodayEventsIfAny(); 
         checkAndTriggerBirthdayOnLoad(); 
 
     </script>
