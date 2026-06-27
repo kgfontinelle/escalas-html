@@ -863,55 +863,69 @@
         }
 
         function updateSettingsUIInputs() {  
-            scheduleTypeSelect.value = settings.scheduleType;
-            shiftContainer.innerHTML = ''; 
-            
-            const patternDetails = schedulePatterns[settings.scheduleType];
-            const numShiftsToDisplay = patternDetails ? patternDetails.shiftsInPattern : (settings.shifts ? settings.shifts.length : 0);
-            
-            if (!settings.shifts) settings.shifts = [];
-            
-            let currentDefaultShifts = [];
-            if (settings.scheduleType === 'ABCD_24_72') {
-                currentDefaultShifts = [
-                    { label: 'A', color: '#FF0000' }, { label: 'B', color: '#00FF00' },
-                    { label: 'C', color: '#FFA500' }, { label: 'D', color: '#FFFF00' }
-                ];
-            } else if (settings.scheduleType === 'SECOM_UR_12H') {
-                currentDefaultShifts = [
-                    { label: 'E', color: '#ff9800' }, { label: 'F', color: '#e91e63' },
-                    { label: 'G', color: '#00bcd4' }, { label: 'H', color: '#795548' },
-                    { label: 'I', color: '#9e9e9e' }
-                ];
-            }
-            settings.shifts = currentDefaultShifts.slice(0, numShiftsToDisplay);
-            
-            for (let i = 0; i < numShiftsToDisplay; i++) {
-                const currentShiftConfig = settings.shifts[i]; 
-                const div = document.createElement('div');
-                div.className = 'flex items-center space-x-2 mb-2';
-                const labelInput = document.createElement('input');
-                labelInput.type = 'text';
-                labelInput.value = currentShiftConfig.label;
-                labelInput.maxLength = 3;
-                labelInput.className = 'w-16 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white';
-                labelInput.onchange = (e) => { settings.shifts[i].label = e.target.value; }; 
-                
-                const colorInput = document.createElement('input');
-                colorInput.type = 'color';
-                colorInput.value = currentShiftConfig.color;
-                colorInput.className = 'w-12 h-10 p-1 border rounded-md dark:bg-gray-700 dark:border-gray-600';
-                colorInput.onchange = (e) => { settings.shifts[i].color = e.target.value; }; 
-                
-                const shiftTitle = document.createElement('span');
-                shiftTitle.className = 'text-sm font-medium text-gray-700 dark:text-gray-300';
-                shiftTitle.textContent = `Ala ${i + 1}:`; 
-                div.appendChild(shiftTitle);
-                div.appendChild(labelInput);
-                div.appendChild(colorInput);
-                shiftContainer.appendChild(div);
-            }
+    scheduleTypeSelect.value = settings.scheduleType;
+    shiftContainer.innerHTML = ''; 
+    
+    const patternDetails = schedulePatterns[settings.scheduleType];
+    const numShiftsToDisplay = patternDetails ? patternDetails.shiftsInPattern : (settings.shifts ? settings.shifts.length : 0);
+    
+    // CORREÇÃO AQUI: Só define as escalas padrão se elas não existirem no objeto 'settings'
+    if (!settings.shifts || settings.shifts.length === 0) {
+        settings.shifts = [];
+        let currentDefaultShifts = [];
+        
+        if (settings.scheduleType === 'ABCD_24_72') {
+            currentDefaultShifts = [
+                { label: 'A', color: '#FF0000' }, { label: 'B', color: '#00FF00' },
+                { label: 'C', color: '#FFA500' }, { label: 'D', color: '#FFFF00' }
+            ];
+        } else if (settings.scheduleType === 'SECOM_UR_12H') {
+            currentDefaultShifts = [
+                { label: 'E', color: '#ff9800' }, { label: 'F', color: '#e91e63' },
+                { label: 'G', color: '#00bcd4' }, { label: 'H', color: '#795548' },
+                { label: 'I', color: '#9e9e9e' }
+            ];
         }
+        
+        // Aplica os padrões apenas na primeira vez
+        settings.shifts = currentDefaultShifts.slice(0, numShiftsToDisplay);
+    }
+    
+    // Renderiza os inputs baseados no que estiver em settings.shifts (preservando o que foi editado)
+    for (let i = 0; i < numShiftsToDisplay; i++) {
+        // Garante que o índice exista para evitar erros de undefined
+        if (!settings.shifts[i]) {
+            settings.shifts[i] = { label: ' ', color: '#ffffff' };
+        }
+
+        const currentShiftConfig = settings.shifts[i]; 
+        const div = document.createElement('div');
+        div.className = 'flex items-center space-x-2 mb-2';
+        
+        const labelInput = document.createElement('input');
+        labelInput.type = 'text';
+        labelInput.value = currentShiftConfig.label;
+        labelInput.maxLength = 3;
+        labelInput.className = 'w-16 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white';
+        labelInput.onchange = (e) => { settings.shifts[i].label = e.target.value; }; 
+        
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = currentShiftConfig.color;
+        colorInput.className = 'w-12 h-10 p-1 border rounded-md dark:bg-gray-700 dark:border-gray-600';
+        colorInput.onchange = (e) => { settings.shifts[i].color = e.target.value; }; 
+        
+        const shiftTitle = document.createElement('span');
+        shiftTitle.className = 'text-sm font-medium text-gray-700 dark:text-gray-300';
+        shiftTitle.textContent = `Ala ${i + 1}:`; 
+        
+        div.appendChild(shiftTitle);
+        div.appendChild(labelInput);
+        div.appendChild(colorInput);
+        shiftContainer.appendChild(div);
+    }
+}
+
 
         function openEventModal(date) {
             currentlyEditingEventDate = date;
