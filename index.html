@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calendário</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
     <!-- Biblioteca para os confetes -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -118,6 +121,9 @@
             </button>
             <button id="openSettingsButton" class="btn-glossy blue text-sm">
                 Config
+            </button>
+            <button id="themeToggleButton" class="btn-glossy grey text-sm">
+                🌙 Escuro
             </button>
             <button id="openTipsButton" class="btn-glossy green text-sm">
                 Dicas
@@ -274,6 +280,7 @@
         const scheduleTypeSelect = document.getElementById('scheduleType');
         const shiftContainer = document.getElementById('shiftSettingsContainer');
         const toggleViewButton = document.getElementById('toggleViewButton'); 
+        const themeToggleButton = document.getElementById('themeToggleButton'); 
         const mainCalendarContainer = document.getElementById('mainCalendarContainer'); 
         const shiftFilterButtonsContainer = document.getElementById('shiftFilterButtonsContainer'); 
         const holidayLegendContainer = document.getElementById('holidayLegendContainer'); 
@@ -1202,6 +1209,33 @@
                 }
             }
         }
+
+        // --- LÓGICA DO TEMA (DARK/LIGHT MODE) ---
+        let currentTheme = localStorage.getItem('theme');
+        if (!currentTheme) {
+            // Puxa a preferência do sistema se não houver um tema salvo
+            currentTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        if (currentTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+            themeToggleButton.textContent = '☀️ Claro';
+        } else {
+            document.documentElement.classList.remove('dark');
+            themeToggleButton.textContent = '🌙 Escuro';
+        }
+
+        themeToggleButton.addEventListener('click', () => {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                themeToggleButton.textContent = '🌙 Escuro';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                themeToggleButton.textContent = '☀️ Claro';
+            }
+        });
 
         // --- INICIALIZAÇÃO DO APP ---
         populateScheduleTypes();
